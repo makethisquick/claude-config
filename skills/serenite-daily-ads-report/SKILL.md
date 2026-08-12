@@ -146,8 +146,8 @@ Mark short-window rankings provisional.
 
 The report is read-only, so it is safe to automate. Requirements for any host:
 - Google Ads API credentials the `serenite-ads-write` MCP server can use (it
-  reads ADC / the same credentials as the local server at
-  `/Users/mike/projects/mcp/google-ads-write`)
+  reads ADC / the same credentials as the local server whose source lives in
+  `servers/google-ads-write/` in the `claude-config` repo)
 - Network access to `googleads.googleapis.com`
 - Somewhere durable to write `~/reports/serenite/`
 

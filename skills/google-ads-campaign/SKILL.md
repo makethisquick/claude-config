@@ -7,7 +7,9 @@ description: Build, validate, and launch Google Ads Search campaigns through the
 
 Write operations go through the `serenite-ads-write` MCP server (22 tools, Google
 Ads API v25). Reads can go through either it or the read-only `serenite-ads`
-server. Source and full server notes: `/Users/mike/projects/mcp/google-ads-write/`.
+server. Source and full server notes: `servers/google-ads-write/` in the
+`claude-config` repo (`~/projects/claude-config` on macOS,
+`%USERPROFILE%\projects\claude-config` on Windows).
 
 ## The safety sequence — never skip a step
 
