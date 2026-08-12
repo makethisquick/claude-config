@@ -1,0 +1,115 @@
+{
+  "_comment": [
+    "Portable MCP server definitions. No secrets live here — every credential is",
+    "referenced as ${VAR} and resolved from the `env` block of ~/.claude/settings.json,",
+    "which bootstrap builds from settings/settings.shared.json + secrets/credentials.json.",
+    "__ROOT__ is replaced by bootstrap with the absolute path to this repo."
+  ],
+
+  "user": {
+    "box-remote-mcp": {
+      "posix":   { "type": "http", "url": "https://mcp.box.com" },
+      "windows": { "type": "http", "url": "https://mcp.box.com" }
+    },
+
+    "serenite": {
+      "posix": {
+        "command": "npx",
+        "args": ["-y", "mcp-remote",
+                 "https://www.serenitemedicalandspa.com/wp-json/mcp/elementor-mcp-server",
+                 "--header", "Authorization: Basic ${SERENITE_MCP_BASIC}"]
+      },
+      "windows": {
+        "command": "cmd",
+        "args": ["/c", "npx", "-y", "mcp-remote",
+                 "https://www.serenitemedicalandspa.com/wp-json/mcp/elementor-mcp-server",
+                 "--header", "Authorization: Basic ${SERENITE_MCP_BASIC}"]
+      }
+    },
+
+    "serenite-ads": {
+      "posix": {
+        "command": "__ROOT__/bin/google-ads-mcp.sh",
+        "args": ["sereniteintelligence"]
+      },
+      "windows": {
+        "command": "powershell",
+        "args": ["-NoProfile", "-ExecutionPolicy", "Bypass",
+                 "-File", "__ROOT__/bin/google-ads-mcp.ps1", "sereniteintelligence"]
+      }
+    },
+
+    "serenite-ads-write": {
+      "posix": {
+        "command": "__ROOT__/bin/google-ads-write.sh",
+        "args": ["sereniteintelligence"]
+      },
+      "windows": {
+        "command": "powershell",
+        "args": ["-NoProfile", "-ExecutionPolicy", "Bypass",
+                 "-File", "__ROOT__/bin/google-ads-write.ps1", "sereniteintelligence"]
+      }
+    }
+  },
+
+  "projects": {
+    "makethisquick.github.io": {
+      "elementor": {
+        "posix": {
+          "command": "npx",
+          "args": ["-y", "mcp-remote",
+                   "https://rojasprohvac.tempurl.host/wp-json/mcp/elementor-mcp-server",
+                   "--header", "Authorization: Basic ${ELEMENTOR_MCP_BASIC}"]
+        },
+        "windows": {
+          "command": "cmd",
+          "args": ["/c", "npx", "-y", "mcp-remote",
+                   "https://rojasprohvac.tempurl.host/wp-json/mcp/elementor-mcp-server",
+                   "--header", "Authorization: Basic ${ELEMENTOR_MCP_BASIC}"]
+        }
+      },
+      "emada1": {
+        "posix": {
+          "command": "npx",
+          "args": ["-y", "mcp-remote",
+                   "https://emada1.tempurl.host/wp-json/mcp/elementor-mcp-server",
+                   "--header", "Authorization: Basic ${EMADA1_MCP_BASIC}"]
+        },
+        "windows": {
+          "command": "cmd",
+          "args": ["/c", "npx", "-y", "mcp-remote",
+                   "https://emada1.tempurl.host/wp-json/mcp/elementor-mcp-server",
+                   "--header", "Authorization: Basic ${EMADA1_MCP_BASIC}"]
+        }
+      },
+      "makethisquick": {
+        "posix": {
+          "command": "npx",
+          "args": ["-y", "mcp-remote",
+                   "https://makethisquick1.tempurl.host/wp-json/mcp/elementor-mcp-server",
+                   "--header", "Authorization: Basic ${MAKETHISQUICK_MCP_BASIC}"]
+        },
+        "windows": {
+          "command": "cmd",
+          "args": ["/c", "npx", "-y", "mcp-remote",
+                   "https://makethisquick1.tempurl.host/wp-json/mcp/elementor-mcp-server",
+                   "--header", "Authorization: Basic ${MAKETHISQUICK_MCP_BASIC}"]
+        }
+      },
+      "lipglossluxe": {
+        "posix": {
+          "command": "npx",
+          "args": ["-y", "mcp-remote",
+                   "https://lipglossluxe.tempurl.host/wp-json/mcp/elementor-mcp-server",
+                   "--header", "Authorization: Basic ${LIPGLOSSLUXE_MCP_BASIC}"]
+        },
+        "windows": {
+          "command": "cmd",
+          "args": ["/c", "npx", "-y", "mcp-remote",
+                   "https://lipglossluxe.tempurl.host/wp-json/mcp/elementor-mcp-server",
+                   "--header", "Authorization: Basic ${LIPGLOSSLUXE_MCP_BASIC}"]
+        }
+      }
+    }
+  }
+}

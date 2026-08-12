@@ -1,0 +1,7 @@
+{
+  "_comment": "Machine-independent slice of ~/.claude/settings.json. Bootstrap merges this with secrets/credentials.json into the real settings.json. The macOS-only `env.PATH` line from the original is deliberately not here — it hardcodes /opt/homebrew and breaks on Windows.",
+  "model": "opus[1m]",
+  "theme": "dark",
+  "skipWorkflowUsageWarning": true,
+  "enabledMcpjsonServers": ["elementor", "serenite"]
+}

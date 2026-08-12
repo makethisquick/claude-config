@@ -1,0 +1,10 @@
+# Virtualenvs are rebuilt per machine by bootstrap — never synced.
+.venv/
+__pycache__/
+*.egg-info/
+*.pyc
+
+# Timestamped backups written by the bootstrap scripts.
+*.bak-*
+*.tmp
+.DS_Store

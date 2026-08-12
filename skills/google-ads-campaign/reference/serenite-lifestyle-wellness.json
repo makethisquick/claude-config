@@ -1,0 +1,134 @@
+{
+  "_note": "Reference payload for a real, applied create_search_campaign build. Applied 2026-08-02 to account 2169272958 (Serenite Medical & Spa). Dry run and apply both reported 78 operations, 0 policy exemptions. Shown with confirm=false — the dry-run form. Re-running this verbatim with confirm=true would create a SECOND campaign; it is a shape reference, not a script.",
+  "_applied": {
+    "date": "2026-08-02",
+    "customer_id": "2169272958",
+    "campaign_id": "24090635268",
+    "campaign_budget_id": "15759663590",
+    "ad_group_id": "199091955059",
+    "ad_id": "819612274949",
+    "operation_count": 78,
+    "policy_exemptions_requested": 0,
+    "status": "PAUSED — never enabled; enabling is a separate decision"
+  },
+  "_decisions": [
+    "MANUAL_CPC $3.50, not Maximize Conversions — no search-side conversion history yet, so a hard ceiling while real CPCs are learned.",
+    "3 county/city geo targets rather than 15 individual cities; the counties cover nearly all of them.",
+    "Wording: 'Sessions' not 'Therapy'; no 'healing therapy'. Account is not Healthcare-Provider certified, so safe-proxy framing only.",
+    "Ad Strength expected 'Good' not 'Excellent' — headline pairs share a content word. Deliberate: single-service ad group, message match matters more."
+  ],
+  "tool": "create_search_campaign",
+  "payload": {
+    "customer_id": "2169272958",
+    "campaign_name": "Serenite Medical & Spa | Lifestyle Wellness | Search",
+    "ad_group_name": "Lifestyle Wellness | Oxygen Sessions",
+    "daily_budget": 15,
+    "bidding_strategy": "MANUAL_CPC",
+    "cpc_bid": 3.5,
+    "status": "PAUSED",
+    "start_date": "2026-08-02",
+    "search_partners": false,
+    "geo_target_ids": ["1027258", "9059781", "1027194"],
+    "language_ids": ["1000"],
+    "match_type": "PHRASE",
+    "location_presence_only": true,
+    "path1": "Oxygen-Wellness",
+    "path2": "Sessions",
+    "final_url": "https://www.serenitemedicalandspa.com/hyperbaric-oxygen/?utm_source=google&utm_medium=cpc&utm_campaign=lifestyle_wellness&utm_content=rsa_oxygen_wellness&utm_term={keyword}",
+    "headlines": [
+      "Oxygen Wellness Sessions",
+      "Advanced Oxygen Wellness",
+      "Hyperbaric Oxygen Sessions",
+      "Serenite Medical & Spa",
+      "Lifestyle Wellness",
+      "Dumfries, VA Wellness",
+      "Private Oxygen Chamber",
+      "Medical-Grade Chamber",
+      "Professionally Monitored",
+      "60-90 Minute Sessions",
+      "Relax and Recharge",
+      "Book a Consultation",
+      "Session Packages Available",
+      "Prince William County",
+      "Wellness Starts Here"
+    ],
+    "descriptions": [
+      "Relax in a private, medical-grade hyperbaric chamber. Professionally monitored sessions.",
+      "Oxygen wellness sessions in Dumfries, VA. Book a consultation with our team today.",
+      "Single sessions and multi-session packages. A calm, spa-like setting in Dumfries.",
+      "Serving Prince William County. 60-90 minute sessions to relax and recharge."
+    ],
+    "keywords": [
+      "hyperbaric oxygen sessions",
+      "hyperbaric oxygen",
+      "hyperbaric chamber",
+      "hyperbaric oxygen near me",
+      "hyperbaric chamber near me",
+      "oxygen wellness",
+      "oxygen wellness sessions",
+      "hbot",
+      "hyperbaric oxygen dumfries va",
+      "hyperbaric oxygen prince william county"
+    ],
+    "negative_keywords": [
+      "free", "cheap", "diy", "for sale", "buy", "rental", "rent", "used",
+      "jobs", "salary", "hiring", "training", "certification", "course",
+      "insurance", "medicare", "medicaid", "fda approved", "cure", "cancer",
+      "autism", "covid", "long covid", "stroke", "wound care", "veterinary",
+      "dog", "cat", "home chamber", "portable"
+    ],
+    "callouts": [
+      "Licensed Professionals",
+      "Personalized Care",
+      "Flexible Scheduling",
+      "Private Chamber",
+      "Professionally Monitored",
+      "Session Packages"
+    ],
+    "sitelinks": [
+      {
+        "text": "Book Consultation",
+        "url": "https://www.serenitemedicalandspa.com/contact-serenite/?utm_source=google&utm_medium=cpc&utm_campaign=lifestyle_wellness&utm_content=sl_book",
+        "description1": "Schedule your first visit",
+        "description2": "Speak with our team today"
+      },
+      {
+        "text": "Session Packages",
+        "url": "https://www.serenitemedicalandspa.com/hyperbaric-oxygen/?utm_source=google&utm_medium=cpc&utm_campaign=lifestyle_wellness&utm_content=sl_packages",
+        "description1": "Single sessions or a series",
+        "description2": "Find what fits your routine"
+      },
+      {
+        "text": "Wellness Services",
+        "url": "https://www.serenitemedicalandspa.com/services/?utm_source=google&utm_medium=cpc&utm_campaign=lifestyle_wellness&utm_content=sl_services",
+        "description1": "Explore all our services",
+        "description2": "Wellness, spa and recovery"
+      },
+      {
+        "text": "About Our Team",
+        "url": "https://www.serenitemedicalandspa.com/contact-serenite/?utm_source=google&utm_medium=cpc&utm_campaign=lifestyle_wellness&utm_content=sl_team",
+        "description1": "Physician-led practice",
+        "description2": "Serving Prince William County"
+      }
+    ],
+    "structured_snippet_header": "Services",
+    "structured_snippet_values": [
+      "Oxygen Wellness",
+      "IV Therapy",
+      "Skin Rejuvenation",
+      "Body Contouring",
+      "Wellness Consults"
+    ],
+    "call_phone_number": "703-441-1905",
+    "call_country_code": "US",
+    "ad_schedule": [
+      {
+        "days": ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"],
+        "start_hour": 8,
+        "end_hour": 19
+      },
+      { "days": ["SATURDAY"], "start_hour": 9, "end_hour": 16 }
+    ],
+    "confirm": false
+  }
+}
