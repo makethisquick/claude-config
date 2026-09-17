@@ -1,0 +1,37 @@
+{
+ "slug": "clientslug",
+ "site_url": "https://example.com",
+ "wp_user": "wpadminuser",
+ "keychain_service": "wp-clientslug",
+ "old_hosts": ["clientslug1.tempurl.host"],
+ "fix": {"replace_old_hosts": true, "delete_defaults": true},
+ "front_page_id": 12,
+ "has_blog": false,
+ "brand": {"site_title": "Example Co", "short_name": "Example", "tagline": "What we do, in eight words", "legal_name": "EXAMPLE LLC",
+           "phone": "908-555-0100", "tel": "tel:+19085550100", "timezone": "America/New_York", "primary_color": "#E31A1C", "primary_color_dark": "#CD1517"},
+ "assets": {"site_icon_id": 40, "og_image": {"id": 47, "url": "https://example.com/wp-content/uploads/…/og-en.png"}, "logo_stacked": {"id": 39, "url": "https://example.com/wp-content/uploads/…/logo.png"}},
+ "leads": {"recipients": ["makethisquick@gmail.com"]},
+ "seo": {
+  "separator": "|",
+  "modules": {"rich-snippet": "off", "redirections": "on", "404-monitor": "on", "content-ai": "off", "ai-visibility": "off", "instant-indexing": "off", "sitemap": "on", "seo-analysis": "on", "link-counter": "on", "analytics": "on", "image-seo": "on"},
+  "pages": [{"id": 12, "url": "https://example.com/", "path": "/", "title": "50–60 chars | Brand", "description": "150–160 chars, phone in every one.", "og_image": {"id": 47, "url": "…"}}],
+  "redirects": [["/old-slug/", "/new/path/"]]
+ },
+ "forms": {"languages": {
+  "en": {"title": "Quick quote — English (Contact page)", "page_id": 11, "page_url": "https://example.com/contact/", "embed_marker": "<form", "thank_you_url": "https://example.com/thank-you/",
+         "messages": {"required": "This field is required", "email": "Enter a valid email address, or leave this blank", "consent": "Please tick the consent box so we can call or text you back"},
+         "fields": [{"kind": "text", "name": "name", "label": "Your name"}, {"kind": "text", "name": "phone", "label": "Phone number", "type": "tel", "help": "Enter a 10-digit phone number, for example 908-555-0100"},
+                    {"kind": "text", "name": "zip", "label": "Town or ZIP"}, {"kind": "select", "name": "what", "label": "What are you seeing?", "placeholder": "Choose one", "options": ["Option A", "Option B", "Not sure / something else"]},
+                    {"kind": "email", "name": "email", "label": "Email (optional)", "required": false},
+                    {"kind": "consent", "name": "consent", "label": "TCPA consent", "html": "I agree that <strong>EXAMPLE LLC</strong> may contact me by phone call and text message at the number I provided, including with an automatic dialing system, about my enquiry. <strong>Consent is not a condition of purchase.</strong> Message and data rates may apply. Reply STOP to opt out. See our <a href=\"/privacy/\">Privacy Policy</a>."}],
+         "submit": "Send this to Example", "reply_to": "{inputs.email}", "subject": "New quote request from {inputs.name} — {inputs.what} ({inputs.zip})",
+         "message": "<p><strong>New website enquiry (English form)</strong></p>{all_data}<p>Submitted from {embed_post.permalink}</p>",
+         "test": {"marker": "TEST — client-launch", "good": {"name": "TEST — client-launch EN", "phone": "908-555-0100", "zip": "Town 07060", "what": "Option A", "email": "", "consent": "on"}, "consent_field": "consent", "required_fields": ["name", "phone"], "email_field": "email"}}
+ }},
+ "thank_you": {"mode": "clone", "languages": {
+  "en": {"clone_from_page_id": 11, "slug": "thank-you", "parent": 0, "path": "/thank-you/", "home_path": "/", "title": "Thank you", "eyebrow": "REQUEST RECEIVED", "h1": "Thank you — we have your request.",
+         "lede": "Someone will call you back during business hours. If it is urgent, call now.", "back_label": "Back to home", "seo_title": "Thank you | Example", "seo_description": "",
+         "header_replacements": {"/contact/": "/thank-you/"}}
+ }},
+ "google": {"ga4_account_name": "Example Co", "industry": "OTHER", "extra_owners": []}
+}
