@@ -31,6 +31,11 @@ except Exception as e: fail(f"ADC not usable ({str(e)[:80]})", "gcloud auth appl
 try:
     subprocess.check_output(["security", "find-generic-password", "-a", "claude", "-s", "google-ads-dev-token", "-w"], stderr=subprocess.DEVNULL); print("ok   Ads developer token in Keychain")
 except Exception: fail("Keychain entry google-ads-dev-token (account claude)", "security add-generic-password -a claude -s google-ads-dev-token -w '<token>'")
+# 3b. Ads API access level: CreateCustomerClient with validate_only — proves the dev token is Basic+ without creating anything
+try:
+    out = subprocess.run([f"{HOME}/.claude/skills/client-launch/scripts/ads_env.sh", "07_ads_account.py", "--selftest"], capture_output=True, text=True, timeout=90)
+    print(out.stdout.strip()) if out.returncode == 0 else fail("Ads API CreateCustomerClient self-test: " + (out.stdout + out.stderr).strip()[-300:])
+except Exception as e: fail(f"Ads self-test could not run ({str(e)[:80]})")
 # 4. the client config, if given
 if len(sys.argv) > 1:
     cfg = json.load(open(sys.argv[1])); slug = cfg["slug"]

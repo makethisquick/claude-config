@@ -165,14 +165,20 @@ $S/../.venv/bin/python $S/07b_ads_draft.py $C ~/projects/<Client>/build/ads-draf
   draft and the eventual build read the same JSON, so the client approves exactly what ships.
 - Copy obeys the same claim rules as the site: no "licensed", "free inspection", "24/7", "same day"
   unless verified. Keywords come from the client's research folder + spec §6.5 — never new research.
-- **Account creation is a human step until the developer token has Basic access** (Explorer access rejects
-  `CreateCustomerClient`). 07a detects this and prints the MCC-UI steps; re-run it afterwards to record the id.
+- **Account creation is automatic** (`CreateCustomerClient`) — the studio developer token reached **Basic**
+  access on 2026-09-18. Preflight proves it every run with `07_ads_account.py --selftest` (validate_only:
+  Google checks the request incl. token access level, creates nothing; there is no delete-account API, so
+  this is the only residue-free test). If the token ever drops below Basic, 07a prints the MCC-UI fallback.
 - **Payment method is a human step** (client's own payments profile; the studio never holds a card).
-- MCC = MakeThisQuick LLC `1018945450`. Two stray unnamed accounts (`1533588091`, `9800342988`)
-  exist outside it — do not use them.
+- MCC = MakeThisQuick LLC `1018945450`. Three stray "setup in progress" accounts (`7447397558`,
+  `9800342988`, `1533588091`) exist outside it — never use them; they cannot be cancelled without
+  finishing signup on a personal payments profile, so they are left alone.
 
-## Phase 7 human steps that the API cannot do (Explorer-access token)
-- Create the client account in the MCC UI; add client users (Admin → Access and security).
+## Phase 7 human steps that the API cannot do
+- Add client users (Admin → Access and security) — user invitations via API are untested since Basic; try
+  `CustomerUserAccessInvitationService` first and fall back to the UI.
+- **Accept "Call and Messaging Ads Terms"** for the new account (banner in the MCC) — an owner click, and
+  call assets may not serve until it is done. Surface it the moment campaigns are built.
 - **Business Profile link: only ever a per-client business group.** The Data manager dialog offers the
   whole GBP *account* (all clients' listings) — never submit that. Split listings into business groups
   in Business Profile Manager first.

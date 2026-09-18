@@ -8,3 +8,4 @@
 - 2026-09-17 v0.6 — 07c campaign build (paused) + Ads conversion tag; policy/validate learnings.
 - 2026-09-17 v0.7 — captcha enable + two-sided proof in 04; phase 8 (weekly client report, first free) specified.
 - 2026-09-17 v0.8 — learnings applied: pending-copy sweep in 01, phase 9 (answers round) + templates, phase-7 human steps (GBP business group), manual verification list.
+- 2026-09-18 v0.9 — dev token at Basic: 07a creates accounts via CreateCustomerClient; `--selftest` (validate_only) wired into 00_preflight; brand-verification / privacy-policy learning; Call & Messaging terms added to human steps.
