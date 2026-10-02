@@ -1,0 +1,93 @@
+# Universal English negatives — people who will never hire anyone. Apply to every English campaign.
+# '*' expands inflections (word, words, wording/-ing form).
+
+# --- not a customer: looking for work or training
+# NOTE: 'school', 'class', 'rent', 'rental' were REMOVED from this list on purpose —
+# schools/institutions and landlords are real buyers for a trades business. Do not re-add.
+job
+jobs
+salary
+salaries
+hiring
+hire me
+career
+careers
+employment
+apprentice*
+training
+course
+courses
+certification
+certificate
+license exam
+licensing exam
+
+# --- research / homework, not buying
+what is
+what are
+what does
+definition
+meaning
+wikipedia
+reddit
+quora
+youtube
+video
+videos
+picture*
+photo*
+image*
+symptoms of
+signs of
+identify
+identification
+species
+life cycle
+facts about
+history of
+
+# --- do it themselves
+diy
+do it yourself
+how to
+how do i
+how do you
+how can i
+homemade
+home remedy
+home remedies
+remedy
+remedies
+natural
+naturally
+at home
+yourself
+myself
+get rid of
+getting rid of
+best way
+best ways
+best thing
+what kills
+kill*
+instantly
+permanently
+mix with
+recipe
+
+# --- shopping for a product, not a service
+product*
+buy
+cheap
+cheapest
+amazon
+walmart
+home depot
+lowes
+costco
+ebay
+wholesale
+supplies
+supplier
+coupon
+discount

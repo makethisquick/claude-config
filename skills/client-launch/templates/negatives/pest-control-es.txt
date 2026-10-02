@@ -1,0 +1,38 @@
+# Control de plagas, español.
+veneno
+venenos
+raticida
+raticidas
+insecticida
+insecticidas
+pesticida
+pesticidas
+cebo
+cebos
+trampa
+trampas
+pastilla
+pastillas
+polvo
+gel
+bicarbonato
+vinagre
+repelente
+repelentes
+acido borico
+ácido bórico
+# marcas de tienda
+sniper
+plop
+baygon
+raid
+# no son servicios que ofrecemos
+ardilla
+ardillas
+mapache
+mapaches
+murcielago
+murciélago
+serpiente
+serpientes
+moho

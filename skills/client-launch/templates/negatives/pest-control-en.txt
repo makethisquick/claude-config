@@ -1,0 +1,56 @@
+# Pest control, English. Retail poison/trap/repellent shoppers — these rarely click but their ignored
+# impressions depress predicted CTR and therefore ad rank.
+poison*
+rodenticide*
+insecticide*
+pesticide*
+bait
+baits
+bait station
+station
+trap*
+glue
+sticky
+bucket
+electric
+ultrasonic
+vacuum
+fogger
+bomb
+spray
+sprays
+powder
+granules
+pellets
+gel
+boric acid
+borax
+baking soda
+vinegar
+peppermint oil
+essential oil
+repel*
+repellent
+repellents
+# retail brands
+tomcat
+d-con
+decon
+ramik
+victor
+catchmaster
+raid
+ortho
+terro
+hot shot
+final blocks
+first strike
+# CLIENT-DEPENDENT — many pest firms DO sell wildlife work. Delete this block unless the client
+# has confirmed they do not offer it; otherwise it belongs in launch.json, not the shared library.
+wildlife removal
+squirrel*
+raccoon*
+bat removal
+snake*
+deer
+mold

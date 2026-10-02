@@ -1,0 +1,79 @@
+# Universal Spanish negatives. The expander emits accented AND unaccented twins for every line —
+# Google does not fold accents in negatives (proven on Eliminatis 2026-10-02).
+
+# --- busca trabajo o formación
+trabajo
+empleo
+salario
+sueldo
+contratando
+vacante*
+curso
+cursos
+certificacion
+licencia examen
+escuela
+clase
+clases
+
+# --- investigación, no compra
+que es
+qué es
+que son
+qué son
+significado
+definicion
+wikipedia
+youtube
+video
+videos
+foto*
+imagen
+imagenes
+sintomas
+señales
+identificar
+tipos de
+ciclo de vida
+
+# --- hágalo usted mismo
+como hacer
+cómo hacer
+como eliminar
+cómo eliminar
+como matar
+cómo matar
+como quitar
+cómo quitar
+casero
+casera
+caseros
+caseras
+remedio casero
+remedios caseros
+que es bueno para
+qué es bueno para
+que sirve para
+qué sirve para
+usted mismo
+por mi cuenta
+para siempre
+matar
+matando
+ahuyentar
+espantar
+
+# --- compra de producto
+producto
+productos
+comprar
+barato
+barata
+amazon
+walmart
+home depot
+mayoreo
+alquiler
+rentar
+oferta
+cupon
