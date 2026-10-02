@@ -174,6 +174,58 @@ $S/../.venv/bin/python $S/07b_ads_draft.py $C ~/projects/<Client>/build/ads-draf
   `9800342988`, `1533588091`) exist outside it — never use them; they cannot be cancelled without
   finishing signup on a personal payments profile, so they are left alone.
 
+## Phase 7d — seed the negatives BEFORE enabling (added 2026-10-02)
+
+Run `scripts/07d_seed_negatives.py --config <launch.json> --verticals <vertical> --go` after 07c builds
+the campaigns PAUSED and before anything is enabled. It applies the shared library in
+`templates/negatives/` (~171 EN / ~109 ES vs the 35 Eliminatis hand-wrote) and expands what Google will
+NOT match for you: inflections (`kill`→`kills`,`killing`), singular/plural, and Spanish accent twins.
+Dry-run first; the output must show 150+ EN / 100+ ES, not a few dozen.
+**Client-specific exclusions — services not offered, out-of-area cities, competitors to leave alone —
+live in `launch.json`, never in the shared library.** Vet the library against what the client actually
+sells: `school`, `class`, `rent`, `rental` were removed from the base list because institutions and
+landlords are real buyers, and wildlife terms are client-dependent.
+*Prevents:* the 71% week-1 waste, the zero-Spanish-negatives gap, and three reactive rounds.
+
+## Phase 7e — pre-launch gate: four lead paths, all proven to fire
+
+Nothing is enabled until all four are verified. A path that is not instrumented reads as "no leads"
+and sends the next session chasing a traffic problem that is really a measurement problem.
+1. **Form → thank-you.** `generate_lead` + the Ads conversion actually fire on the live thank-you page
+   (curl it and grep for the `send_to` label), not merely that the page loads.
+2. **Website phone tap.** `templates/telclick.example.py` injected on every published page (grep
+   `data-elm-tel`), then fire a synthetic tap and confirm
+   `googleadservices.com/pagead/conversion/<id>/?…` returns 200 **carrying `gclaw=<gclid>`** — that
+   parameter is the proof it attributes to the ad click rather than a bare page view.
+3. **Call direct from the ad** (dialled before the visitor ever reaches the site) — a path 07c does NOT
+   currently create. Verify `customer.call_reporting_setting.call_reporting_enabled` is true AND that a
+   real call conversion action exists in `conversion_action` with `include_in_conversions_metric = true`.
+   On Eliminatis the setting pointed at an action id that does not appear in the account's own list, so
+   assume nothing from the setting alone. Post-launch read `segments.click_type = 'CALLS'` and
+   `metrics.phone_calls` — **never the call asset's own `clicks`**, which counts clicks on the ad while
+   the asset was showing and can report clicks with zero real taps.
+4. **Map / Directions taps** are not leads. Confirm they sit in `all_conversions` only
+   (`include_in_conversions_metric = false`), so a weekly report never calls 15 GBP taps 15 leads.
+
+## Phase 7f — client pre-launch email (`templates/client-prelaunch-email.example.md`)
+
+Send with the payment-method request, before enabling. Warns the client in writing about the three
+owner-only gates that silently block serving — payments/card verification (the code lives in the
+description of a ~$1.95 temporary charge, which banks truncate), identity/business verification (1–3
+business days, client only), and the Call Ads terms tick — and asks them to report any phone call that
+mentions Google, which is the only way to close a loop a `tel:` tap cannot.
+
+## Post-launch cadence: day 1 / day 3 / day 7
+
+- **Day 1 (hours, not next morning):** re-run the 7e serving check. If every campaign shows 0 impressions,
+  distinguish "never entered an auction" from "suppressed": `search_impression_share` exactly `0.0`
+  (not `0.0999`) plus empty `position_estimates` on every keyword means the account has never served —
+  look for a UI-only banner, not a targeting fault.
+- **Day 3:** pull `search_term_view` (clicked **and** zero-click) and diff against the seeded list; add
+  this client's vertical slang. Zero-click junk still costs you — ignored impressions drag predicted CTR
+  into quality score and therefore ad rank.
+- **Day 7:** first client report + the budget-gate read. Never raise budget while waste is high.
+
 ## Phase 7 human steps that the API cannot do
 - Add client users (Admin → Access and security) — user invitations via API are untested since Basic; try
   `CustomerUserAccessInvitationService` first and fall back to the UI.
