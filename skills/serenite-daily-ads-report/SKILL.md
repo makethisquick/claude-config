@@ -50,6 +50,9 @@ keep that in its own query.
    `APPROVED_LIMITED`
 7. **Display only** — `detail_placement_view` (`placement`, `placement_type`,
    `display_name`) and `segments.device`. This is where junk hides.
+8. **Bid strategy drift** — `campaign.bidding_strategy_type` and
+   `campaign.manual_cpc.enhanced_cpc_enabled` for every non-REMOVED campaign.
+   Both live campaigns must read `MANUAL_CPC` with `enhanced_cpc_enabled: false`.
 
 ## Step 2 — the analysis that matters
 
@@ -80,6 +83,36 @@ placement.** Recommend relevance work, not budget increases.
 Bucket every clicked search term into **high-intent / marginal / waste** with the
 cost of each bucket. Report waste as a share of spend. Above ~25% needs action;
 name the specific negative keywords.
+
+### Bid strategy drift — check this every run
+Accepting a Google recommendation in the Ads **mobile app** can silently change
+the bidding strategy, and nothing in the spend figures announces it. It happened
+on 2026-09-24: both live campaigns went from Manual CPC to Maximize conversions,
+and over the next seven days average CPC went $2.73 → $4.67 (+71%), waste went
+16.4% → 29.1% of spend, and the strategy was credited 0.00 conversions. Reverted
+2026-10-02.
+
+So compare `bidding_strategy_type` against the intended state (`MANUAL_CPC`,
+`enhanced_cpc_enabled: false`) on every run and **lead the report with any
+difference**. The account has ~1 conversion/month against Google's ~30/month
+guidance for conversion-based bidding, so an automated strategy here is bidding
+on noise — a drift finding is a cost problem, not a preference.
+
+This skill does not fix it: name the remedy and stop. The remedy is
+`set_campaign_bidding_strategy(campaign_id=..., strategy="MANUAL_CPC")` in the
+`serenite-ads-write` server, which belongs to the `google-ads-campaign` skill and
+needs Mike's approval after its own dry run. Also check
+`change_event` for `user_email` and `client_type` so the report can say who
+changed it and from where:
+
+```sql
+SELECT change_event.change_date_time, change_event.user_email,
+       change_event.client_type, change_event.change_resource_type,
+       change_event.changed_fields
+FROM change_event
+WHERE change_event.change_date_time BETWEEN '<start>' AND '<today>'
+LIMIT 100
+```
 
 ### Zero-click ad groups
 Before concluding "bad ad group", check `search_top_impression_share`. A low
@@ -133,7 +166,7 @@ and print a short summary. Structure:
 5. **Search terms** — high-intent / marginal / waste with costs; negatives to add
 6. **Display** — placement quality, junk domains found
 7. **Anomalies** — zero-click groups, disapproved or limited ads, `RARELY_SERVED`
-   keywords, policy changes
+   keywords, policy changes, **bid strategy drift**
 8. **Ranked actions** — most valuable first, each with expected effect
 9. **What changed since yesterday** — diff against the previous report file if present
 
@@ -156,5 +189,6 @@ roughly 10-20 read operations — negligible. Do not add dry runs; this skill
 never mutates.
 
 If a scheduled run finds something urgent — spend above the daily ceiling, an ad
-newly DISAPPROVED, a campaign gone dark, or waste above 40% of spend — lead the
-report with it rather than burying it in section 7.
+newly DISAPPROVED, a campaign gone dark, waste above 40% of spend, or a bidding
+strategy that is no longer `MANUAL_CPC` — lead the report with it rather than
+burying it in section 7.

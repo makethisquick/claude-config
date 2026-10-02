@@ -110,6 +110,26 @@ mcp.tool(
     ),
 )
 
+mcp.tool(
+    campaigns.set_campaign_bidding_strategy,
+    name="set_campaign_bidding_strategy",
+    description=(
+        "Switch a campaign's bidding strategy: MANUAL_CPC | MAXIMIZE_CLICKS | "
+        "MAXIMIZE_CONVERSIONS | MAXIMIZE_CONVERSION_VALUE | "
+        "TARGET_IMPRESSION_SHARE (TARGET_CPA and TARGET_ROAS are accepted as the "
+        "names the Ads UI still uses and routed to the Maximize* strategies "
+        "Google replaced them with). This changes how every auction is bid, so it "
+        "is its own decision. On an account with only a handful of conversions an "
+        "automated strategy has nothing to learn from and bids blind — prefer "
+        "MANUAL_CPC there, which restores the ad groups' stored cpc_bid_micros "
+        "and turns enhanced CPC off (Google will not let anything turn it back "
+        "on). Currency parameters are in dollars, not micros; target_roas and "
+        "impression_share_target are ratios. MAXIMIZE_CLICKS and "
+        "TARGET_IMPRESSION_SHARE require cpc_bid_ceiling. "
+        "DRY RUN unless confirm=true."
+    ),
+)
+
 
 # --------------------------------------------------------------------------
 # structure

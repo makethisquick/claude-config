@@ -1,11 +1,11 @@
 ---
 name: google-ads-campaign
-description: Build, validate, and launch Google Ads Search campaigns through the serenite-ads-write MCP server. Covers the dry-run/confirm safety gate, the pre-build checklist (landing page, geo target IDs, character limits), the atomic create_search_campaign call with extensions, post-apply verification queries, and the separate decision to enable spending. Use when asked to create/build/launch a Google Ads campaign, add keywords or negatives, attach sitelinks/callouts/call extensions/ad schedules, change budgets or bids, or enable/pause a campaign.
+description: Build, validate, and launch Google Ads Search campaigns through the serenite-ads-write MCP server. Covers the dry-run/confirm safety gate, the pre-build checklist (landing page, geo target IDs, character limits), the atomic create_search_campaign call with extensions, post-apply verification queries, and the separate decision to enable spending. Use when asked to create/build/launch a Google Ads campaign, add keywords or negatives, attach sitelinks/callouts/call extensions/ad schedules, change budgets, bids or bidding strategy, or enable/pause a campaign.
 ---
 
 # Google Ads campaign builds
 
-Write operations go through the `serenite-ads-write` MCP server (22 tools, Google
+Write operations go through the `serenite-ads-write` MCP server (35 tools, Google
 Ads API v25). Reads can go through either it or the read-only `serenite-ads`
 server. Source and full server notes: `servers/google-ads-write/` in the
 `claude-config` repo (`~/projects/claude-config` on macOS,
@@ -78,6 +78,61 @@ exists.
 
 Reference payload from a real applied build:
 `reference/serenite-lifestyle-wellness.json`.
+
+## Changing the bidding strategy
+
+`set_campaign_bidding_strategy` (added 2026-10-02) switches a live campaign
+between `MANUAL_CPC`, `MAXIMIZE_CLICKS`, `MAXIMIZE_CONVERSIONS`,
+`MAXIMIZE_CONVERSION_VALUE` and `TARGET_IMPRESSION_SHARE`. Treat it like
+enabling a campaign: its own dry run, its own approval. It changes how every
+auction is bid, and the effect shows up as CPC within a day.
+
+**Why it exists.** On 2026-09-24 a Google recommendation accepted in the Ads
+mobile app moved two live Serenite campaigns from Manual CPC to Maximize
+conversions. There was no API tool to undo it, so the revert needed a browser
+session — on a page where screenshots are blocked and Material components ignore
+synthetic clicks. Measured damage over the seven days it ran: average CPC
+$2.73 → $4.67 (+71%), waste 16.4% → 29.1% of spend, 0.00 conversions attributed
+to the strategy. Never leave this to the UI again.
+
+**When an automated strategy is the wrong answer.** Maximize conversions needs
+conversion volume to learn from — Google's own guidance is ~30/month, and this
+account produces a handful per quarter. Below that it is bidding on noise, and it
+will spend the whole budget proving it. Default to `MANUAL_CPC` on low-volume
+accounts and say so when a recommendation argues otherwise.
+
+**Things the API will not forgive** (all established by dry run, so don't
+rediscover them):
+
+- `campaign.bidding_strategy_type` is **output-only**. The strategy is declared
+  by which oneof field is set, never by naming the type.
+- Update masks must name **leaf** fields. Masking `manual_cpc` fails with
+  `FIELD_HAS_SUBFIELDS`.
+- Standalone `TARGET_CPA` / `TARGET_ROAS` no longer exist at campaign level;
+  Google folded them into `MAXIMIZE_CONVERSIONS(target_cpa)` and
+  `MAXIMIZE_CONVERSION_VALUE(target_roas)`. The tool accepts the old names as
+  aliases and routes them, because the Ads UI still shows them.
+- Bid ceilings are accepted on `MAXIMIZE_CLICKS` and `TARGET_IMPRESSION_SHARE`
+  (required on both — a zero ceiling returns "Too low.") and **refused** on the
+  Maximize\* strategies, where they are portfolio-only.
+- Enhanced CPC cannot be turned back on — Google returns "The operation is not
+  allowed for the given context." `MANUAL_CPC` therefore always sets it off, and
+  that is a one-way door.
+
+Currency parameters are in dollars, not micros. `target_roas` (e.g. `4.0`) and
+`impression_share_target` (e.g. `0.65`) are ratios.
+
+**Verify after switching to MANUAL_CPC.** The per-ad-group `cpc_bid_micros`
+survive a spell under an automated strategy and govern auctions again
+immediately, but confirm rather than assume:
+
+```
+SELECT ad_group.name, ad_group.cpc_bid_micros, ad_group.effective_cpc_bid_micros
+FROM ad_group WHERE campaign.id = <id> AND ad_group.status = 'ENABLED'
+```
+
+`effective_cpc_bid_micros` should equal `cpc_bid_micros` on every row. If it
+doesn't, the switch didn't take.
 
 ## Verify after applying
 

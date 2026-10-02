@@ -377,3 +377,185 @@ def update_campaign_budget(
             "new_daily_budget": f"${daily_budget:,.2f}",
         },
     )
+
+
+# Bid strategy. Added 2026-10-02 after a Google recommendation accepted in the
+# mobile app silently moved two live campaigns off MANUAL_CPC to
+# MAXIMIZE_CONVERSIONS, and the only way back was the web UI. An automated
+# strategy on an account with a handful of conversions bids with nothing to
+# learn from, so getting back to manual has to be one call, not a browser
+# expedition.
+#
+# Everything below was established by dry-running each shape against a live
+# Search campaign on 2026-10-02. The API is unforgiving in four ways:
+#   * bidding_strategy_type is output-only. The strategy is declared by WHICH
+#     oneof field you set, never by naming the type.
+#   * the update mask must name LEAF fields — masking `manual_cpc` fails with
+#     FIELD_HAS_SUBFIELDS — so every branch sets at least one leaf and masks
+#     exactly the leaves it set.
+#   * standalone TargetCpa / TargetRoas are gone at campaign level. Google
+#     folded them into MaximizeConversions(target_cpa_micros) and
+#     MaximizeConversionValue(target_roas); setting the old ones returns
+#     "The operation is not allowed for the given context."
+#   * bid ceilings are accepted on TargetSpend and TargetImpressionShare and
+#     refused on the Maximize* strategies (portfolio-only there).
+#
+# strategy -> (oneof field, message type, leaves always set)
+_STRATEGY_FIELDS = {
+    "MANUAL_CPC": ("manual_cpc", "ManualCpc", ["enhanced_cpc_enabled"]),
+    "MAXIMIZE_CONVERSIONS": (
+        "maximize_conversions",
+        "MaximizeConversions",
+        ["target_cpa_micros"],
+    ),
+    "MAXIMIZE_CONVERSION_VALUE": (
+        "maximize_conversion_value",
+        "MaximizeConversionValue",
+        ["target_roas"],
+    ),
+    # Google's UI calls this "Maximize clicks"; the API calls it TargetSpend.
+    "MAXIMIZE_CLICKS": ("target_spend", "TargetSpend", ["cpc_bid_ceiling_micros"]),
+    "TARGET_IMPRESSION_SHARE": (
+        "target_impression_share",
+        "TargetImpressionShare",
+        ["location", "location_fraction_micros", "cpc_bid_ceiling_micros"],
+    ),
+}
+
+# The retired names, kept because that is what the Ads UI still shows the user.
+_STRATEGY_ALIASES = {
+    "TARGET_CPA": "MAXIMIZE_CONVERSIONS",
+    "TARGET_ROAS": "MAXIMIZE_CONVERSION_VALUE",
+}
+
+_IMPRESSION_SHARE_LOCATIONS = (
+    "ANYWHERE_ON_PAGE",
+    "TOP_OF_PAGE",
+    "ABSOLUTE_TOP_OF_PAGE",
+)
+
+
+def _reject(message: str) -> dict[str, Any]:
+    return {"status": "rejected", "applied": False, "errors": [message]}
+
+
+def set_campaign_bidding_strategy(
+    customer_id: str,
+    campaign_id: str,
+    strategy: str,
+    target_cpa: float | None = None,
+    target_roas: float | None = None,
+    cpc_bid_ceiling: float | None = None,
+    impression_share_location: str = "TOP_OF_PAGE",
+    impression_share_target: float | None = None,
+    confirm: bool = False,
+) -> dict[str, Any]:
+    """Switches a live campaign's bidding strategy.
+
+    strategy: MANUAL_CPC | MAXIMIZE_CLICKS | MAXIMIZE_CONVERSIONS |
+    MAXIMIZE_CONVERSION_VALUE | TARGET_IMPRESSION_SHARE. TARGET_CPA and
+    TARGET_ROAS are accepted as the names the Ads UI still uses and are routed
+    to MAXIMIZE_CONVERSIONS / MAXIMIZE_CONVERSION_VALUE with the target set,
+    which is what Google replaced them with.
+
+    MANUAL_CPC restores the per-ad-group cpc_bid_micros already stored on the
+    account. Those survive a spell under an automated strategy and govern
+    auctions again as soon as manual bidding is back, so they do not need
+    re-entering — but read effective_cpc_bid_micros afterwards to confirm they
+    took. It also turns enhanced CPC off, which Google does not let anything
+    turn back on.
+
+    Per-strategy parameters, all in currency units rather than micros:
+      MAXIMIZE_CLICKS           cpc_bid_ceiling, required
+      MAXIMIZE_CONVERSIONS      target_cpa, optional
+      MAXIMIZE_CONVERSION_VALUE target_roas as a ratio e.g. 4.0, optional
+      TARGET_IMPRESSION_SHARE   impression_share_target as a share e.g. 0.65,
+                                plus cpc_bid_ceiling, both required
+    """
+    requested = strategy.upper().strip()
+    strategy = _STRATEGY_ALIASES.get(requested, requested)
+    if strategy not in _STRATEGY_FIELDS:
+        return _reject(
+            f"unknown strategy {requested!r}; expected one of "
+            + ", ".join(sorted(set(_STRATEGY_FIELDS) | set(_STRATEGY_ALIASES)))
+        )
+
+    # Google requires a target on the retired names, since choosing them is the
+    # user saying they want that target rather than uncapped bidding.
+    if requested == "TARGET_CPA" and target_cpa is None:
+        return _reject("TARGET_CPA requires target_cpa")
+    if requested == "TARGET_ROAS" and target_roas is None:
+        return _reject("TARGET_ROAS requires target_roas")
+    if strategy == "MAXIMIZE_CLICKS" and not cpc_bid_ceiling:
+        return _reject(
+            "MAXIMIZE_CLICKS requires cpc_bid_ceiling — Google rejects a zero "
+            "ceiling with 'Too low.', and uncapped maximize-clicks on a small "
+            "budget buys the cheapest traffic available"
+        )
+    if strategy == "TARGET_IMPRESSION_SHARE":
+        if impression_share_target is None:
+            return _reject(
+                "TARGET_IMPRESSION_SHARE requires impression_share_target, "
+                "e.g. 0.65 for 65%"
+            )
+        if not cpc_bid_ceiling:
+            return _reject("TARGET_IMPRESSION_SHARE requires cpc_bid_ceiling")
+        if impression_share_location not in _IMPRESSION_SHARE_LOCATIONS:
+            return _reject(
+                "impression_share_location must be one of "
+                + ", ".join(_IMPRESSION_SHARE_LOCATIONS)
+            )
+
+    client = get_client()
+    cid = normalize_customer_id(customer_id)
+
+    op = client.get_type("MutateOperation")
+    campaign = op.campaign_operation.update
+    campaign.resource_name = _campaign_path(client, cid, campaign_id)
+
+    field, type_name, leaves = _STRATEGY_FIELDS[strategy]
+    # Reset the oneof to a clean message so a leftover ceiling or target from
+    # the outgoing strategy cannot ride along into the new one.
+    setattr(campaign, field, client.get_type(type_name))
+    bid = getattr(campaign, field)
+
+    summary: dict[str, Any] = {
+        "action": "set_campaign_bidding_strategy",
+        "campaign_id": campaign_id,
+        "strategy": strategy,
+    }
+    if requested != strategy:
+        summary["requested_as"] = requested
+
+    if strategy == "MANUAL_CPC":
+        # Always off: Google refuses to enable it now ("The operation is not
+        # allowed for the given context"), and switching away is one-way.
+        bid.enhanced_cpc_enabled = False
+        summary["enhanced_cpc"] = False
+    elif strategy == "MAXIMIZE_CLICKS":
+        bid.cpc_bid_ceiling_micros = _to_micros(cpc_bid_ceiling)
+        summary["cpc_bid_ceiling"] = f"${cpc_bid_ceiling:,.2f}"
+    elif strategy == "MAXIMIZE_CONVERSIONS":
+        # 0 is how Google spells "no target CPA, just spend the budget".
+        bid.target_cpa_micros = _to_micros(target_cpa or 0)
+        summary["target_cpa"] = f"${target_cpa:,.2f}" if target_cpa else "none"
+    elif strategy == "MAXIMIZE_CONVERSION_VALUE":
+        bid.target_roas = float(target_roas or 0)
+        summary["target_roas"] = float(target_roas) if target_roas else "none"
+    elif strategy == "TARGET_IMPRESSION_SHARE":
+        bid.location = getattr(
+            client.enums.TargetImpressionShareLocationEnum, impression_share_location
+        )
+        bid.location_fraction_micros = int(round(impression_share_target * 1_000_000))
+        bid.cpc_bid_ceiling_micros = _to_micros(cpc_bid_ceiling)
+        summary["impression_share"] = (
+            f"{impression_share_target:.0%} {impression_share_location}"
+        )
+        summary["cpc_bid_ceiling"] = f"${cpc_bid_ceiling:,.2f}"
+
+    client.copy_from(
+        op.campaign_operation.update_mask,
+        FieldMask(paths=[f"{field}.{leaf}" for leaf in leaves]),
+    )
+
+    return apply(cid, [op], confirm, summary)

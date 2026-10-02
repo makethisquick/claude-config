@@ -29,6 +29,34 @@ a `validate_only=True` request with the expected operation count and criterion
 fields, bad input is rejected by name, and one request round-trips through
 protobuf serialization. **Nothing has been sent to Google, not even a dry run.**
 
+**Added 2026-10-02: bid strategy — now 35 tools.**
+`tools/campaigns.py` adds `set_campaign_bidding_strategy`.
+
+Why: on 2026-09-24 a Google recommendation accepted in the Ads **mobile app**
+moved both live Serenite campaigns off `MANUAL_CPC` to `MAXIMIZE_CONVERSIONS`.
+No tool here could undo it, so the revert took a browser session against a page
+that blocks screenshots and swallows synthetic clicks. Seven days of damage:
+average CPC $2.73 → $4.67 (+71%), waste 16.4% → 29.1% of spend, 0.00 conversions
+credited to the strategy.
+
+Unlike the Display work, this one was **dry-run against the live account** —
+17 cases over both live campaigns, every one `validate_only`, nothing written.
+Four API facts the dry runs taught, each of which had failed first:
+
+- `campaign.bidding_strategy_type` is output-only. The strategy is declared by
+  which oneof field you set, not by naming the type.
+- Update masks must name **leaf** fields; masking `manual_cpc` returns
+  `FIELD_HAS_SUBFIELDS`. Every branch sets at least one leaf and masks exactly
+  those.
+- Standalone `TargetCpa` / `TargetRoas` are gone at campaign level — Google
+  folded them into `MaximizeConversions(target_cpa_micros)` and
+  `MaximizeConversionValue(target_roas)`. The old names are kept as aliases and
+  routed, because the Ads UI still shows them.
+- Bid ceilings are required on `TargetSpend` (a zero ceiling returns "Too low.")
+  and `TargetImpressionShare`, and refused on the Maximize\* strategies.
+- Enhanced CPC cannot be re-enabled: "The operation is not allowed for the given
+  context." `MANUAL_CPC` always writes it off, which is a one-way door.
+
 What v25 actually required, vs. what was assumed going in:
 
 - **No `NegativeCampaignCriterion` resource.** A negative is `CampaignCriterion`
