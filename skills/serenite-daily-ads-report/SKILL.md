@@ -1,6 +1,6 @@
 ---
 name: serenite-daily-ads-report
-description: Produce the daily Google Ads performance report for Serenite Medical & Spa — traffic quality, wasted spend, impression-share diagnosis, placement-junk detection, and budget pacing against Google's 2x/30.4x limits. Use when asked for a Serenite ads report, a daily/weekly ads check, "how are the ads doing", wasted spend review, search-terms review, or when running on a schedule.
+description: Produce the daily Google Ads performance report for Serenite Medical & Spa — traffic quality, wasted spend, impression-share diagnosis, placement-junk detection, and budget pacing against Google's 2x/30.4x limits. Also covers the post-click funnel: GA4 engagement and form drop-off, Search Console demand the account isn't bidding on, conversion-tracking coverage, and ad schedule vs opening hours. Use when asked for a Serenite ads report, a daily/weekly ads check, "how are the ads doing", wasted spend review, search-terms review, lead-generation diagnosis, or when running on a schedule.
 ---
 
 # Serenite daily Google Ads report
@@ -134,6 +134,45 @@ via **mobile web, not apps**. A negative `MOBILE_APP_CATEGORY` exclusion cannot
 block them, and neither can `adsenseformobileapps.com`. Only placement
 exclusions or pausing work. Do not claim the app exclusion protects against this.
 
+### The post-click funnel — the half this skill used to miss
+On 2026-10-06 a full-funnel diagnostic found the ad auction healthy and the
+account still producing ~0.5 leads/week, because **every leak was after the
+click** and this skill had never looked there. Auction metrics alone will read
+"fine" while the business converts at 0.80%. Pull these every run:
+
+**GA4** (property `504027223`, Data API; the ADC already carries
+`analytics.readonly`):
+- `form_start` vs `form_submit` vs users on `/contact-serenite/` — the drop
+  between them IS the conversion problem. At the 10-06 baseline: 240 users,
+  34 form starts, 11 reaching `/thank-you/`.
+- `landingPagePlusQueryString` filtered to `sessionMedium = cpc` — engagement
+  rate and bounce per paid landing page. A page over ~70% bounce taking a large
+  share of paid sessions is a bigger lever than any keyword.
+- `/thank-you/` users = **the real all-channel completion count**. Reconcile it
+  against `metrics.conversions`; they should be close.
+
+**Search Console** (`www.serenitemedicalandspa.com`; the ADC carries
+`webmasters`): queries at position 5–20 with high impressions and ~0 clicks are
+demand the account is not bidding on. This is how the whole HRT / geo-modified
+cluster was found.
+
+**Conversion coverage** — list `conversion_action` and check what ISN'T tracked.
+Website `tel:` clicks had no conversion action at all while 81% of paid traffic
+was mobile. Also check `customer.call_reporting_setting.call_reporting_enabled`:
+when it is false, ad call data does not exist.
+
+**Do not trust GA4 `generate_lead` on this property.** It is misconfigured — it
+fires on `/contact-serenite/` page interactions (80 of 98 events), not on lead
+submission. Never import it into Ads for bidding. Use `/thank-you/` instead.
+
+### Ad schedule vs actual opening hours
+Compare the campaign's `AD_SCHEDULE` criteria against the clinic's real hours
+(Mon–Wed 08:00–17:00, Thu–Fri 08:00–14:30, **closed Sat and Sun**). At the
+10-06 baseline, 35.5% of scheduled ad hours ran while the clinic was shut,
+taking 38.7% of spend ($583.65) for 1 of 4 leads — Saturday alone was $264.85
+for zero. For a business whose main conversion is a phone call, this is real
+money. Report the open/closed spend split every time.
+
 ## Step 3 — interpretation constraints (do not violate)
 
 - **The only biddable conversion is `7670763779`** (contact form → `/thank-you/`),
@@ -143,9 +182,11 @@ exclusions or pausing work. Do not claim the app exclusion protects against this
 - **Zero conversions on small click counts is not evidence.** State the
   probability rather than implying failure — at a 7% CVR, zero from 17 clicks has
   ~29% probability.
-- **Lead-level attribution does not exist yet.** The Fluent Forms entry captures
-  no `gclid`. Until that is fixed, no report can say which lead came from which
-  keyword. Say so rather than implying otherwise.
+- **Lead-level attribution DOES exist — verified 2026-10-06.** The Fluent Forms
+  entry on `/contact-serenite/` captures `gclid`, `utm_source` and `utm_medium`
+  in hidden fields, and they populate correctly. Earlier versions of this skill
+  said the opposite; that claim is RETRACTED. Keyword-level lead analysis is
+  possible — do it rather than disclaiming it.
 - **No Keyword Planner access.** Never invent search volume, benchmark CTR, or
   industry-average CPC. If you lack the data, say so.
 - **"Eligible (limited)" does not stop delivery** — it restricts audience reach.
@@ -167,8 +208,11 @@ and print a short summary. Structure:
 6. **Display** — placement quality, junk domains found
 7. **Anomalies** — zero-click groups, disapproved or limited ads, `RARELY_SERVED`
    keywords, policy changes, **bid strategy drift**
-8. **Ranked actions** — most valuable first, each with expected effect
-9. **What changed since yesterday** — diff against the previous report file if present
+8. **Post-click funnel** — paid landing-page engagement/bounce, contact-page
+   form-start vs completion, `/thank-you/` count vs Ads conversions, any
+   conversion action that is missing, and the open-vs-closed-hours spend split
+9. **Ranked actions** — most valuable first, each with expected effect
+10. **What changed since yesterday** — diff against the previous report file if present
 
 Be explicit about what the sample size supports. One day supports conclusions
 about **traffic composition and auction position**; it does not support
