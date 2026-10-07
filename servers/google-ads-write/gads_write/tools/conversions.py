@@ -451,3 +451,115 @@ def set_campaign_conversion_goal(
             ),
         },
     )
+
+
+# Creating conversion actions. Added 2026-10-07: the account could flip existing
+# actions on and off but had no way to make one, which meant the two things the
+# funnel most needed to measure — phone calls from ads, and a second form
+# distinguishable from the booking form — could only be built by hand in the UI.
+_CREATABLE_TYPES = {
+    # type -> (sensible default category, needs a phone duration?)
+    "AD_CALL": ("PHONE_CALL_LEAD", True),
+    "WEBSITE_CALL": ("PHONE_CALL_LEAD", True),
+    "CLICK_TO_CALL": ("PHONE_CALL_LEAD", False),
+    "WEBPAGE": ("SUBMIT_LEAD_FORM", False),
+    "UPLOAD_CLICKS": ("SUBMIT_LEAD_FORM", False),
+    "UPLOAD_CALLS": ("PHONE_CALL_LEAD", False),
+}
+
+
+def create_conversion_action(
+    customer_id: str,
+    name: str,
+    action_type: str,
+    category: str | None = None,
+    phone_call_duration_seconds: int | None = None,
+    count_once_per_click: bool = True,
+    click_through_lookback_days: int | None = None,
+    primary_for_goal: bool = True,
+    value: float | None = None,
+    confirm: bool = False,
+) -> dict[str, Any]:
+    """Creates a conversion action.
+
+    action_type: AD_CALL | WEBSITE_CALL | CLICK_TO_CALL | WEBPAGE |
+    UPLOAD_CLICKS | UPLOAD_CALLS.
+
+    AD_CALL counts calls placed from a call asset or call ad, and only works
+    once call reporting is enabled on the account (see set_call_reporting).
+    Set phone_call_duration_seconds to the length below which a call is not a
+    lead — it is the single most useful field here. A medical practice that
+    counts every 20-second wrong number as a conversion will teach its bidding
+    to buy wrong numbers.
+
+    count_once_per_click=True (ONE_PER_CLICK) suits lead generation, where one
+    person enquiring twice is still one lead. False (MANY_PER_CLICK) suits
+    purchases.
+
+    primary_for_goal=True makes the action count in the main "Conversions"
+    column and therefore influence bidding. Set it False for actions you want
+    to observe but not bid on.
+
+    click_through_lookback_days caps at 60 for call actions (90 is accepted on
+    WEBPAGE but returns range_error: TOO_HIGH on AD_CALL — found by dry run
+    2026-10-07). Omit it to take Google's default.
+    """
+    action_type = action_type.upper().strip()
+    if action_type not in _CREATABLE_TYPES:
+        return _rejected(
+            [
+                f"unknown action_type {action_type!r}; expected one of "
+                + ", ".join(sorted(_CREATABLE_TYPES))
+            ]
+        )
+    default_category, takes_duration = _CREATABLE_TYPES[action_type]
+    category = (category or default_category).upper().strip()
+
+    if phone_call_duration_seconds is not None and not takes_duration:
+        return _rejected(
+            [f"phone_call_duration_seconds does not apply to {action_type}"]
+        )
+
+    client = get_client()
+    cid = normalize_customer_id(customer_id)
+
+    op = client.get_type("MutateOperation")
+    action = op.conversion_action_operation.create
+    action.name = name
+    action.type_ = getattr(client.enums.ConversionActionTypeEnum, action_type)
+    action.category = getattr(client.enums.ConversionActionCategoryEnum, category)
+    action.status = client.enums.ConversionActionStatusEnum.ENABLED
+    action.primary_for_goal = bool(primary_for_goal)
+    action.counting_type = getattr(
+        client.enums.ConversionActionCountingTypeEnum,
+        "ONE_PER_CLICK" if count_once_per_click else "MANY_PER_CLICK",
+    )
+
+    summary: dict[str, Any] = {
+        "action": "create_conversion_action",
+        "name": name,
+        "type": action_type,
+        "category": category,
+        "counting": "ONE_PER_CLICK" if count_once_per_click else "MANY_PER_CLICK",
+        "primary_for_goal": bool(primary_for_goal),
+    }
+
+    if phone_call_duration_seconds is not None:
+        action.phone_call_duration_seconds = int(phone_call_duration_seconds)
+        summary["phone_call_duration_seconds"] = int(phone_call_duration_seconds)
+    if click_through_lookback_days is not None:
+        if takes_duration and int(click_through_lookback_days) > 60:
+            return _rejected(
+                [
+                    f"click_through_lookback_days caps at 60 for {action_type}; "
+                    f"got {click_through_lookback_days}. Omit it for the default."
+                ]
+            )
+        action.click_through_lookback_window_days = int(click_through_lookback_days)
+        summary["click_through_lookback_days"] = int(click_through_lookback_days)
+    if value is not None:
+        action.value_settings.default_value = float(value)
+        action.value_settings.always_use_default_value = True
+        summary["default_value"] = f"${value:,.2f}"
+
+    return apply(cid, [op], confirm, summary)

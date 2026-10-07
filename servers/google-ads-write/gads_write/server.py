@@ -9,6 +9,7 @@ import logging
 from fastmcp import FastMCP
 
 from .tools import (
+    account,
     assets,
     campaigns,
     conversions,
@@ -127,6 +128,42 @@ mcp.tool(
         "impression_share_target are ratios. MAXIMIZE_CLICKS and "
         "TARGET_IMPRESSION_SHARE require cpc_bid_ceiling. "
         "DRY RUN unless confirm=true."
+    ),
+)
+
+
+mcp.tool(
+    conversions.create_conversion_action,
+    name="create_conversion_action",
+    description=(
+        "Create a conversion action: AD_CALL | WEBSITE_CALL | CLICK_TO_CALL | "
+        "WEBPAGE | UPLOAD_CLICKS | UPLOAD_CALLS. AD_CALL counts calls from call "
+        "assets and call ads and only works once set_call_reporting is on. Always "
+        "set phone_call_duration_seconds on call actions — it is the threshold "
+        "below which a call is not a lead, and without it bidding learns to buy "
+        "wrong numbers. count_once_per_click=true suits lead gen; "
+        "primary_for_goal=true makes it influence bidding, false observes only. "
+        "DRY RUN unless confirm=true."
+    ),
+)
+
+
+# --------------------------------------------------------------------------
+# account-level settings
+# --------------------------------------------------------------------------
+
+mcp.tool(
+    account.set_call_reporting,
+    name="set_call_reporting",
+    description=(
+        "Turn Google forwarding numbers (call reporting) on or off for the whole "
+        "account. ON is the only way calls from call assets and call ads get a "
+        "duration, a status and a conversion — with it OFF, phone leads from ads "
+        "are invisible, which matters most for businesses whose main conversion "
+        "IS a phone call. The catch: forwarding numbers are also how Google "
+        "records calls, so on a healthcare account this is a HIPAA question and "
+        "needs a written call-recording exemption first, not a preference. "
+        "Affects every campaign at once. DRY RUN unless confirm=true."
     ),
 )
 

@@ -138,6 +138,53 @@ def _rejection(customer_id, summary, errors, exemptible) -> dict[str, Any]:
     return result
 
 
+def apply_customer(
+    customer_id: str,
+    operation,
+    confirm: bool,
+    summary: dict[str, Any],
+) -> dict[str, Any]:
+    """Validates or executes a single CustomerOperation.
+
+    Account-level settings do not go through GoogleAdsService.Mutate like every
+    other resource — they have their own service — so they need their own
+    confirm gate rather than borrowing apply().
+    """
+    client = get_client()
+    customer_id = normalize_customer_id(customer_id)
+
+    service = client.get_service("CustomerService")
+    request = client.get_type("MutateCustomerRequest")
+    request.customer_id = customer_id
+    client.copy_from(request.operation, operation)
+    request.validate_only = not confirm
+
+    try:
+        response = service.mutate_customer(request=request)
+    except GoogleAdsException as exc:
+        return _rejection(customer_id, summary, _format_errors(exc), [])
+
+    if not confirm:
+        return {
+            "status": "validated",
+            "applied": False,
+            "customer_id": customer_id,
+            "intended": summary,
+            "next_step": (
+                "Nothing was changed — this was a dry run. Re-run the same call "
+                "with confirm=true to apply it."
+            ),
+        }
+
+    return {
+        "status": "applied",
+        "applied": True,
+        "customer_id": customer_id,
+        "summary": summary,
+        "resource_name": getattr(response.result, "resource_name", None),
+    }
+
+
 def apply(
     customer_id: str,
     operations: list,
