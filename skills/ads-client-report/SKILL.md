@@ -98,6 +98,19 @@ Getting this wrong is the fastest way to destroy a report's credibility.
 - Conversions credit back to the **click** date, so recent days keep rising for
   weeks. Never present a conversion rate for the last 2–3 days as final.
 
+## Local Services leads cost money even when they are not leads
+
+If the account runs Local Services, `pull_data.py` returns `lsa_dispute_candidates`:
+charged leads whose phone call ran **under 60 seconds** and which have never been
+disputed. Nobody books a real job in 23 seconds, Google will credit these back, and
+the window is only about **30 days from the lead date** — so a report that does not
+surface them is quietly letting the client pay for nothing.
+
+Raise them with the studio, not in the client report: disputing is done in the Local
+Services interface by the account owner, and a half-explained charge in a client
+document invites a question you cannot answer in writing. One real case: a $65 lead
+that was a 23-second call, sitting undisputed for three weeks.
+
 ## Period comparison
 
 Monthly is the default. The comparison that reads best is **three windows**:

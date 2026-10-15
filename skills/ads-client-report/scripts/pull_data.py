@@ -114,6 +114,36 @@ def main():
             L.setdefault("device", r.segments.device.name); L.setdefault("hour", r.segments.hour)
     out["leads"] = leads
 
+    # --- Local Services leads: flag short calls as dispute candidates --------
+    # An LSA lead is charged whether or not it was a real enquiry. A very short
+    # call is almost never a genuine booking, and Google will credit it back —
+    # but only inside roughly a 30-day window, so a report that does not surface
+    # this is quietly costing the client money.
+    lsa = []
+    if any(k == "LOCAL_SERVICES" for k in chan):
+        durs = {}
+        for r in q("SELECT local_services_lead_conversation.id, local_services_lead_conversation.conversation_channel, local_services_lead_conversation.event_date_time, local_services_lead_conversation.phone_call_details.call_duration_millis FROM local_services_lead_conversation"):
+            cv = r.local_services_lead_conversation
+            if cv.phone_call_details.call_duration_millis:
+                durs[str(cv.event_date_time)[:19]] = cv.phone_call_details.call_duration_millis / 1000
+        for r in q("SELECT local_services_lead.id, local_services_lead.lead_type, local_services_lead.lead_status, local_services_lead.creation_date_time, local_services_lead.lead_charged, local_services_lead.credit_details.credit_state FROM local_services_lead"):
+            L = r.local_services_lead
+            created = str(L.creation_date_time)[:19]
+            secs = durs.get(created)
+            disputed = L.credit_details.credit_state.name not in ("UNSPECIFIED", "UNKNOWN", "")
+            rec = {"id": str(L.id), "created": created, "type": L.lead_type.name,
+                   "charged": bool(L.lead_charged), "call_seconds": secs,
+                   "credit_state": L.credit_details.credit_state.name, "disputed": disputed}
+            if L.lead_charged and secs is not None and secs < 60 and not disputed:
+                age = (datetime.date.today() - datetime.date.fromisoformat(created[:10])).days
+                rec["dispute_candidate"] = True
+                rec["days_since_lead"] = age
+                rec["dispute_note"] = (f"{secs:.0f}s call, charged, never disputed — "
+                    f"{age} days old; the LSA credit window is about 30 days.")
+            lsa.append(rec)
+    out["local_services_leads"] = lsa
+    out["lsa_dispute_candidates"] = [x for x in lsa if x.get("dispute_candidate")]
+
     # --- daily series (for the spend chart) ---------------------------------
     out["daily"] = [{"date": str(r.segments.date), "impressions": r.metrics.impressions,
                      "clicks": r.metrics.clicks, "cost": round(r.metrics.cost_micros/1e6,2),
@@ -123,6 +153,14 @@ def main():
     # --- GA4 behaviour, optional ---------------------------------------------
     out["ga4"] = None
     prop = cfg.get("ga4_property")
+    if not prop:
+        # Silently omitting the behaviour section produces a report that looks
+        # complete and isn't. Most clients DO have GA4 — the id was just never
+        # looked up. Find it with: scripts/find_ga4.py --match <client>
+        print("[WARN] no ga4_property in config — the visitor-behaviour section will be MISSING.\n"
+              "       Most clients have GA4. Find the id with:  scripts/find_ga4.py --match <client>\n"
+              "       Set it to false explicitly if this client genuinely has no analytics.", file=sys.stderr)
+        out["ga4_missing_reason"] = "ga4_property not set in config"
     if prop:
         try:
             tok = subprocess.check_output(["gcloud","auth","application-default","print-access-token"], text=True).strip()
