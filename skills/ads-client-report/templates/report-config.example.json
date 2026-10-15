@@ -1,0 +1,14 @@
+{
+  "_comment": "Copy to ~/projects/<Client>/report.json and fill in. Keep it with the client's other config, never in the skill.",
+  "client_name": "Example Pest Control",
+  "contact_first_name": "Joan",
+  "customer_id": "0000000000",
+  "mcc_customer_id": "1018945450",
+  "timezone": "America/New_York",
+  "currency": "USD",
+  "ga4_property": "554558243",
+  "launch_date": "2026-09-21",
+  "services_label": "service",
+  "accent": "#E31A1C",
+  "notes_for_writer": "Anything the writer must respect: claims that are and are not permitted, services not offered, a client ruling that should not be re-litigated, compliance posture. This text is read by the model writing the prose, never printed in the report."
+}

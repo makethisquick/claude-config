@@ -1,0 +1,33 @@
+{
+  "_comment": "The WORDS. Numbers come from the data blob so prose and tables cannot disagree. Write this fresh each time — a report that reads like a template is why clients stop opening them.",
+  "title": "Google Ads Report",
+  "accent": "#E31A1C",
+  "subtitle": "September 21 to October 14, 2026   ·   first four weeks   ·   prepared by MakeThisQuick",
+  "standing": {
+    "title": "Where things stand",
+    "lines": ["Leads sentence — the number, and whether it is moving.",
+              "Money sentence — what it cost, and the direction of cost per enquiry.",
+              "The one thing sentence — what is being worked on next, in plain words."]
+  },
+  "sections": {
+    "leads": {
+      "heading": "Enquiries", "paras": ["..."], "after_chart": ["..."],
+      "table_heading": "Who got in touch",
+      "table_head": ["When", "What they searched", "Which page", "Device"],
+      "table": [["Mon 28 Sep, 5pm", "rat removal", "Rodent control", "Mobile"]],
+      "table_widths": [2100, 2900, 2600, 1760],
+      "closing": ["Anything worth noticing about the pattern of enquiries."]
+    },
+    "cost": { "heading": "What it costs", "paras": ["..."], "after_spend": ["..."] },
+    "behaviour": { "heading": "How visitors behave on your site", "paras": ["..."], "after_chart": ["..."] },
+    "changes": { "heading": "What we changed", "bullets": ["Plain-language change, tied to an outcome."] },
+    "recommend": { "heading": "What we recommend next",
+      "items": [{ "heading": "1.  Short imperative", "paras": ["One line of why."] }] },
+    "help": { "title": "What would help us most", "lines": ["1.  ...", "2.  ..."] }
+  },
+  "numbers_heading": "Period by period",
+  "service_table_heading": "Where your money went",
+  "service_table": [["Bed bugs (English)", "173", "21", "$54.87", "1"]],
+  "glossary": [["Impression", "One time your ad was shown to somebody."]],
+  "footer": ["Questions about anything here — just reply.", "Prepared by MakeThisQuick  ·  <date>"]
+}
