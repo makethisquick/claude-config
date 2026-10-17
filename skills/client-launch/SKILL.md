@@ -174,6 +174,25 @@ $S/../.venv/bin/python $S/07b_ads_draft.py $C ~/projects/<Client>/build/ads-draf
   `9800342988`, `1533588091`) exist outside it — never use them; they cannot be cancelled without
   finishing signup on a personal payments profile, so they are left alone.
 
+## Phase 7c2 — give the ads a logo and a business name (added 2026-10-17)
+
+```
+ads_env.sh 07c2_brand_assets.py <launch.json>        # dry run
+ads_env.sh 07c2_brand_assets.py <launch.json> --go
+```
+
+**A search ad's logo does not come from the website's favicon.** It comes from
+`BUSINESS_LOGO` + `BUSINESS_NAME` assets on the Ads account. A client ran four weeks
+of paid traffic with no logo beside his website and asked why — his favicon was
+flawless (Site Icon set, square 512×512 PNG, correctly declared) and entirely
+irrelevant to the ad. Nothing breaks when these are missing, which is exactly why it
+goes unnoticed: the ads just look more anonymous than the competitors beside them.
+
+The script derives both from config that already exists — `assets.site_icon_id` and
+`brand.short_name` — validates Google's rules before sending anything (square 1:1,
+≥128px, <5120KB; name ≤25 chars), and is idempotent. If the site icon is not square
+it stops and asks for `ads.logo_url` rather than letting Google reject the asset.
+
 ## Phase 7d — seed the negatives BEFORE enabling (added 2026-10-02)
 
 Run `scripts/07d_seed_negatives.py --config <launch.json> --verticals <vertical> --go` after 07c builds
@@ -207,6 +226,9 @@ and sends the next session chasing a traffic problem that is really a measuremen
 4. **Map / Directions taps** are not leads. Confirm they sit in `all_conversions` only
    (`include_in_conversions_metric = false`), so a weekly report never calls 15 GBP taps 15 leads.
 
+5. **Brand assets present.** `SELECT campaign_asset.field_type FROM campaign_asset`
+   must include `BUSINESS_LOGO` and `BUSINESS_NAME`. An account carrying only
+   CALL/CALLOUT/SITELINK/STRUCTURED_SNIPPET is missing them — run phase 7c2.
 ## Phase 7f — client pre-launch email (`templates/client-prelaunch-email.example.md`)
 
 Send with the payment-method request, before enabling. Warns the client in writing about the three
