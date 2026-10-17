@@ -128,17 +128,19 @@ const W=D.windows, lbl=W.map(w=>w.label);
 kids.push(tbl(["",...lbl,"Total"],[
   ["Times your ads were shown",...W.map(w=>num(w.impressions)),num(D.totals.impressions)],
   ["Visits to your site",...W.map(w=>num(w.clicks)),num(D.totals.clicks)],
-  ["Enquiries",...W.map(w=>String(Math.round(w.leads))),String(Math.round(D.totals.leads))],
-  ["Enquiries per 100 visits",...W.map(w=>w.cvr.toFixed(2)+"%"),D.totals.cvr.toFixed(2)+"%"],
+  [N.lead_row_label||"Enquiries",...W.map(w=>String(Math.round(w.leads))),String(Math.round(D.totals.leads))],
+  // secondary actions (e.g. direction requests for a walk-in venue) — shown, never blended into enquiries
+  ...Object.keys(D.totals.secondary||{}).map(k=>[k,...W.map(w=>num(Math.round((w.secondary||{})[k]||0))),num(Math.round(D.totals.secondary[k]))]),
+  [N.rate_row_label||"Enquiries per 100 visits",...W.map(w=>w.cvr.toFixed(2)+"%"),D.totals.cvr.toFixed(2)+"%"],
   ["Cost per visit",...W.map(w=>money(w.cpc)),money(D.totals.cpc)],
-  ["Cost per enquiry",...W.map(w=>money(w.cpl)),money(D.totals.cpl)],
+  [N.cost_row_label||"Cost per enquiry",...W.map(w=>money(w.cpl)),money(D.totals.cpl)],
   ["Average spend per day",...W.map(w=>money(w.per_day)),money(D.totals.per_day)],
   ["Total spent",...W.map(w=>money(w.cost)),money(D.totals.cost)]],
   [3100,...W.map(()=>Math.floor(4440/W.length)),1820]));
 kids.push(gap(200));
 if((N.service_table||[]).length){
   kids.push(h2(N.service_table_heading||"Where your money went"));
-  kids.push(tbl(["Service","Times shown","Visits","Spent","Enquiries"],N.service_table,[3260,1500,1200,1500,1900],true));
+  kids.push(tbl(N.service_table_head||["Service","Times shown","Visits","Spent","Enquiries"],N.service_table,[3260,1500,1200,1500,1900],true));
 }
 // glossary
 kids.push(h1("Plain English"));

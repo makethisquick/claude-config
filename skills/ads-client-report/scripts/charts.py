@@ -21,6 +21,7 @@ def style(accent):
 def main():
     ap=argparse.ArgumentParser(); ap.add_argument("--data",required=True); ap.add_argument("--out",required=True)
     ap.add_argument("--accent",default="#E31A1C")
+    ap.add_argument("--lead-noun",default="enquiry",help="what one lead is called on chart titles, e.g. 'call tap'")
     a=ap.parse_args(); os.makedirs(a.out,exist_ok=True)
     d=json.load(open(a.data)); style(a.accent)
     ACCENT=a.accent; LIGHT="#E8EAF0"; GREY="#8A92A6"; DARK="#1F2430"; GREEN="#1B8A5A"; MID="#F4A8A9"
@@ -62,7 +63,7 @@ def main():
                         fontweight="bold",fontsize=12 if good else 10,color=GREEN if good else DARK)
         for i,w in enumerate(W):
             if not w.get("cpl"): ax.text(i,hi*1.1,"no enquiries yet",ha="center",color=GREY,fontsize=9,style="italic")
-        ax.set_title("Cost per enquiry",loc="left",fontweight="bold",fontsize=13,pad=10)
+        ax.set_title(f"Cost per {a.lead_noun}",loc="left",fontweight="bold",fontsize=13,pad=10)
         plt.tight_layout(); plt.savefig(f"{a.out}/c2_cpl.png",bbox_inches="tight"); plt.close(); made.append("c2_cpl.png")
 
     # 3 — visitor behaviour, only if GA4 gave us both ends
@@ -93,10 +94,13 @@ def main():
         hi=max(sp+([budget] if budget else []))
         if budget:
             ax.axhline(budget,color=DARK,ls="--",lw=1.4,zorder=4)
-            ax.text(len(W)-0.58,budget+hi*0.035,f"planned budget  ${budget:,.2f}/day",fontsize=8.5,color=DARK,ha="right")
+            # label sits in the headroom, not on the line — a bar near budget would collide with it
+            ax.text(len(W)-0.5,hi*1.22,f"- - -  planned budget ${budget:,.2f}/day",fontsize=8.5,color=DARK,ha="right",va="center")
         ax.set_ylabel("Average daily spend"); ax.set_ylim(0,hi*1.3)
         ax.yaxis.set_major_formatter(FuncFormatter(lambda v,_:f"${v:,.0f}")); ax.grid(axis="y",color=LIGHT,zorder=0)
-        for i,v in enumerate(sp): ax.text(i,v+hi*0.035,f"${v:,.2f}",ha="center",fontweight="bold",fontsize=10,color=DARK)
+        for i,v in enumerate(sp):   # value at mid-bar: spend usually sits near the budget line
+            ax.text(i,v/2,f"${v:,.2f}",ha="center",va="center",fontweight="bold",fontsize=10,
+                    color="white" if i==len(sp)-1 else DARK)
         ax.set_title("Average daily spend",loc="left",fontweight="bold",fontsize=13,pad=10)
         plt.tight_layout(); plt.savefig(f"{a.out}/c4_spend.png",bbox_inches="tight"); plt.close(); made.append("c4_spend.png")
 

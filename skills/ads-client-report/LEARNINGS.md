@@ -45,3 +45,40 @@ account ids, search terms or lead details — this file is studio-wide.
 - **General rule both faults share: absence is not evidence of absence.** A missing
   section and an undisputed charge both look like "nothing to report". Make the
   tooling say *why* something is missing rather than quietly omitting it.
+
+## 2026-10-15 — first run on a Smart Campaign account shared directly (not under the MCC)
+- **`pull_data.py` forced the manager id as login-customer-id**, which fails for an
+  account a client shares with the studio login directly. `mcc_customer_id` is now
+  optional; null means "direct access, send no login-customer-id".
+- **Smart Campaigns break the `include_in_conversions_metric` rule.** Google-hosted
+  "Local actions - Directions" and "Clicks to call" land in `metrics.conversions`
+  even when that flag is false — one account showed 1,143 "conversions" that were 4
+  confirmed calls, 32 call taps and 1,107 direction requests. Config now takes
+  `lead_actions` (recount leads from exactly these action names) and
+  `secondary_actions` (reported as their own rows, never blended). Always look at
+  `segments.conversion_action_name` before trusting the leads number.
+- **For a walk-in venue, direction requests are the main signal**, not leads. Lead
+  with them, call them interest not visits, and recommend an offline count at the
+  door — it is the only way to get a cost per visitor.
+- **Paused campaigns were inflating the planned budget** (their budgets were summed).
+  Only ENABLED campaigns count now.
+- **`ga4_property: false` still printed the missing-GA4 warning.** False now means
+  "deliberately none" and is recorded as the reason; null still warns loudly.
+- **The spend chart's labels collided with the budget line** whenever spend sat near
+  budget (the usual case). Budget label now sits in the headroom, values mid-bar.
+- **Smart Campaigns expose no ad-group metrics and no keyword_view**, so the per-lead
+  table comes back empty. Use `smart_campaign_search_term_view` for a
+  "what people searched" table instead.
+- **Check the website itself**: one fetch showed no Google tag, an untappable phone
+  number and a broken form shortcode — three concrete improvements the Ads data
+  alone would never reveal.
+
+## 2026-10-17 — a joining bug that silently fabricated a fact
+- **Enrich a lead from its OWN ad group, never from the campaign.** `pull_data.py`
+  filled in device and hour with a campaign-level query, so when two leads landed on
+  the same day they both inherited the first segment row — one lead was reported at
+  02:00 when it actually came in at 17:00. The output looked entirely plausible,
+  which is what made it dangerous: a client report would have stated a confident,
+  invented fact. Scope every enrichment query to the same ad group as the lead, and
+  escape quotes in the ad-group name. Caught only because a hand-check from an
+  earlier session disagreed — worth re-deriving one number by hand per report.

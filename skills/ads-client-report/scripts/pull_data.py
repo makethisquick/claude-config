@@ -10,7 +10,11 @@ disagrees with its own table.
 import argparse, datetime, json, os, re, subprocess, sys, urllib.request, zoneinfo
 
 def ads_client(mcc):
-    os.environ["GOOGLE_ADS_LOGIN_CUSTOMER_ID"] = str(mcc)
+    # An account shared with the studio login directly (client added us as admin,
+    # not linked under the manager account) must NOT send a login-customer-id —
+    # Google rejects the manager id for an account it does not manage.
+    if mcc: os.environ["GOOGLE_ADS_LOGIN_CUSTOMER_ID"] = str(mcc)
+    else: os.environ.pop("GOOGLE_ADS_LOGIN_CUSTOMER_ID", None)
     os.environ.setdefault("GOOGLE_APPLICATION_CREDENTIALS", os.path.expanduser("~/.config/gcloud/application_default_credentials.json"))
     os.environ.setdefault("GOOGLE_CLOUD_PROJECT", "sereniteintelligence")
     if not os.environ.get("GOOGLE_ADS_DEVELOPER_TOKEN"):
@@ -36,7 +40,7 @@ def main():
     ap.add_argument("--start"); ap.add_argument("--end")
     a = ap.parse_args()
     cfg = json.load(open(os.path.expanduser(a.config)))
-    C = str(cfg["customer_id"]); MCC = str(cfg["mcc_customer_id"])
+    C = str(cfg["customer_id"]); MCC = str(cfg["mcc_customer_id"]) if cfg.get("mcc_customer_id") else None
     tz = zoneinfo.ZoneInfo(cfg.get("timezone","America/New_York"))
     today = datetime.datetime.now(tz).date()
 
@@ -84,12 +88,15 @@ def main():
 
     # --- per channel: Search / Display / LSA never blended -------------------
     chan = {}
-    for r in q(f"SELECT campaign.name, campaign.advertising_channel_type, campaign_budget.amount_micros, metrics.impressions, metrics.clicks, metrics.cost_micros, metrics.conversions FROM campaign WHERE segments.date BETWEEN '{start}' AND '{end}'"):
+    for r in q(f"SELECT campaign.name, campaign.status, campaign.advertising_channel_type, campaign_budget.amount_micros, metrics.impressions, metrics.clicks, metrics.cost_micros, metrics.conversions FROM campaign WHERE segments.date BETWEEN '{start}' AND '{end}'"):
         m = r.metrics; t = r.campaign.advertising_channel_type.name
+        # a paused campaign with no activity is not part of the planned budget
+        if r.campaign.status.name != "ENABLED" and not m.impressions: continue
         d = chan.setdefault(t, {"impressions":0,"clicks":0,"cost":0.0,"leads":0.0,"campaigns":[],"budget_per_day":0.0})
         d["impressions"] += m.impressions; d["clicks"] += m.clicks
         d["cost"] = round(d["cost"]+m.cost_micros/1e6,2); d["leads"] = round(d["leads"]+m.conversions,1)
-        d["budget_per_day"] = round(d["budget_per_day"] + r.campaign_budget.amount_micros/1e6, 2)
+        if r.campaign.status.name == "ENABLED":
+            d["budget_per_day"] = round(d["budget_per_day"] + r.campaign_budget.amount_micros/1e6, 2)
         d["campaigns"].append(r.campaign.name)
     out["by_channel"] = chan
     out["budget_per_day_total"] = round(sum(v["budget_per_day"] for v in chan.values()), 2)
@@ -107,11 +114,17 @@ def main():
         leads.append({"date": str(r.segments.date), "campaign": r.campaign.name,
                       "ad_group": r.ad_group.name, "action": r.segments.conversion_action_name,
                       "count": round(r.metrics.conversions,1)})
-    for L in leads:   # enrich with keyword + device + hour where Google exposes it
-        for r in q(f"SELECT ad_group_criterion.keyword.text, metrics.conversions FROM keyword_view WHERE segments.date='{L['date']}' AND metrics.conversions > 0 AND ad_group.name = '{L['ad_group']}'"):
+    # Enrich each lead with keyword, device and hour. These MUST be scoped to the
+    # lead's own ad group: querying device/hour at campaign level returns one row
+    # per segment for the whole campaign, so two leads on the same day silently
+    # inherit the same hour. (Caught 2026-10-17 — two leads both reported 02:00
+    # when one was actually 17:00.)
+    for L in leads:
+        ag = L["ad_group"].replace("'", "\\'")
+        for r in q(f"SELECT ad_group_criterion.keyword.text, metrics.conversions FROM keyword_view WHERE segments.date='{L['date']}' AND metrics.conversions > 0 AND ad_group.name = '{ag}'"):
             L["keyword"] = r.ad_group_criterion.keyword.text; break
-        for r in q(f"SELECT segments.device, segments.hour, metrics.conversions FROM campaign WHERE segments.date='{L['date']}' AND metrics.conversions > 0"):
-            L.setdefault("device", r.segments.device.name); L.setdefault("hour", r.segments.hour)
+        for r in q(f"SELECT segments.device, segments.hour, metrics.conversions FROM ad_group WHERE segments.date='{L['date']}' AND metrics.conversions > 0 AND ad_group.name = '{ag}'"):
+            L["device"] = r.segments.device.name; L["hour"] = r.segments.hour; break
     out["leads"] = leads
 
     # --- Local Services leads: flag short calls as dispute candidates --------
@@ -144,16 +157,64 @@ def main():
     out["local_services_leads"] = lsa
     out["lsa_dispute_candidates"] = [x for x in lsa if x.get("dispute_candidate")]
 
+    # --- explicit lead definition (overrides metrics.conversions) -------------
+    # Smart Campaigns (and some other auto-managed accounts) put Google-hosted
+    # actions such as "Local actions - Directions" and "Clicks to call" into
+    # metrics.conversions even when include_in_conversions_metric is false — one
+    # account showed 1,143 "conversions" that were 4 confirmed calls, 32 call-button
+    # taps and 1,107 direction requests. When the config names lead_actions, leads
+    # are recounted from exactly those actions, and secondary_actions (e.g.
+    # directions for a walk-in venue) are reported separately, never blended.
+    LA = cfg.get("lead_actions"); SA = cfg.get("secondary_actions") or {}
+    if LA:
+        def by_action(s, e):
+            agg = {}
+            for r in q(f"SELECT segments.conversion_action_name, metrics.conversions FROM customer WHERE segments.date BETWEEN '{s}' AND '{e}'"):
+                n = r.segments.conversion_action_name; agg[n] = agg.get(n,0) + r.metrics.conversions
+            return agg
+        def relead(t, s, e):
+            agg = by_action(s, e)
+            t["google_conversions"] = round(sum(agg.values()),1)
+            t["leads"] = round(sum(agg.get(n,0) for n in LA),1)
+            t["secondary"] = {lbl: round(sum(agg.get(n,0) for n in names),1) for lbl,names in SA.items()}
+            t["cvr"] = round(100*t["leads"]/max(t["clicks"],1),2)
+            t["cpl"] = round(t["cost"]/t["leads"],2) if t["leads"] else None
+            return t
+        out["totals"] = relead(out["totals"], start, end)
+        out["windows"] = [relead(w, w["start"], w["end"]) for w in out["windows"]]
+        out["lead_definition"] = {"lead_actions": LA, "secondary_actions": SA}
+        # per campaign + per day, by action
+        camp = {}
+        for r in q(f"SELECT campaign.name, segments.conversion_action_name, metrics.conversions FROM campaign WHERE segments.date BETWEEN '{start}' AND '{end}' AND metrics.conversions > 0"):
+            camp.setdefault(r.campaign.name, {})[r.segments.conversion_action_name] = round(r.metrics.conversions,1)
+        out["conversions_by_campaign_action"] = camp
+        for g in out["ad_groups"]:
+            acts = camp.get(g["campaign"], {})
+            g["leads"] = round(sum(acts.get(n,0) for n in LA),1)
+            g["secondary"] = {lbl: round(sum(acts.get(n,0) for n in names),1) for lbl,names in SA.items()}
+        for t, d in chan.items():
+            d["leads"] = round(sum(sum(camp.get(c,{}).get(n,0) for n in LA) for c in d["campaigns"]),1)
+        out["leads"] = [L for L in out["leads"] if L["action"] in LA]
+
     # --- daily series (for the spend chart) ---------------------------------
     out["daily"] = [{"date": str(r.segments.date), "impressions": r.metrics.impressions,
                      "clicks": r.metrics.clicks, "cost": round(r.metrics.cost_micros/1e6,2),
                      "leads": round(r.metrics.conversions,1)}
         for r in q(f"SELECT segments.date, metrics.impressions, metrics.clicks, metrics.cost_micros, metrics.conversions FROM customer WHERE segments.date BETWEEN '{start}' AND '{end}' ORDER BY segments.date")]
 
+    if LA:
+        per = {}
+        for r in q(f"SELECT segments.date, segments.conversion_action_name, metrics.conversions FROM customer WHERE segments.date BETWEEN '{start}' AND '{end}'"):
+            if r.segments.conversion_action_name in LA:
+                per[str(r.segments.date)] = per.get(str(r.segments.date),0) + r.metrics.conversions
+        for d in out["daily"]: d["leads"] = round(per.get(d["date"],0),1)
+
     # --- GA4 behaviour, optional ---------------------------------------------
     out["ga4"] = None
     prop = cfg.get("ga4_property")
-    if not prop:
+    if prop is False:
+        out["ga4_missing_reason"] = "client has no GA4 property (set false explicitly in config)"
+    elif not prop:
         # Silently omitting the behaviour section produces a report that looks
         # complete and isn't. Most clients DO have GA4 — the id was just never
         # looked up. Find it with: scripts/find_ga4.py --match <client>
