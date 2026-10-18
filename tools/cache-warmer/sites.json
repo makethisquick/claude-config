@@ -1,0 +1,11 @@
+{
+  "_comment": "Sites whose page cache should be kept warm. Public URLs only - never put credentials in this file. Add a client by appending an entry; nothing else needs to change.",
+  "sites": [
+    {
+      "name": "eliminatis",
+      "sitemap": "https://eliminatis.com/sitemap_index.xml",
+      "enabled": true,
+      "reason": "WPMU Quantum plan: ~3.5x slower PHP than our other sites, 1h cache TTL, and only the homepage is preloaded. Cold render is 1.4-2.3s vs 0.09s warm, so the first visitor to each page each hour - often a paid ad click - eats the slow path."
+    }
+  ]
+}

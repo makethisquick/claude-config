@@ -1,0 +1,38 @@
+name: cache-warmer
+
+# Keeps client page caches warm so real visitors never pay for a cold render.
+# See tools/cache-warmer/README.md for why this exists and what it costs.
+
+on:
+  schedule:
+    # Every 30 minutes. The cache TTL we are defending against is 1 hour, and
+    # GitHub's scheduler is best-effort - runs routinely drift 5-20 minutes under
+    # load. Hourly would therefore leave real gaps; 30 minutes absorbs the drift.
+    - cron: "*/30 * * * *"
+  workflow_dispatch:        # lets you run it on demand from the Actions tab
+    inputs:
+      verbose:
+        description: "Print every URL"
+        type: boolean
+        default: false
+
+concurrency:
+  # A slow site can make a run take a while; never let two overlap.
+  group: cache-warmer
+  cancel-in-progress: false
+
+jobs:
+  warm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Warm caches
+        run: |
+          python3 tools/cache-warmer/warm.py \
+            ${{ inputs.verbose && '--verbose' || '' }}
+
+      # The step above exits non-zero if a site is unreachable or its sitemap
+      # moved. A warmer that quietly stops working is worse than no warmer, so
+      # let the run go red and surface in GitHub's failed-workflow notifications.
