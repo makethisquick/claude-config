@@ -69,7 +69,24 @@ if acct and not prop and not dry:
     if not any(k["eventName"] == "generate_lead" for k in kes.get("keyEvents", [])): call("POST", GA + f"/{prop}/keyEvents", json={"eventName": "generate_lead", "countingMethod": "ONCE_PER_EVENT"})
     lines.append(f"GA4 {prop} stream {stream['name'].split('/')[-1]} measurementId {mid}; key event generate_lead")
     # gtag site-wide, same html-widget pattern as attribution; guarded so a re-run does not double-install
-    snippet = ("<script data-elm-ga4=\"1\" async src=\"https://www.googletagmanager.com/gtag/js?id=" + mid + "\"></script><script data-elm-ga4c=\"1\">window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','" + mid + "',{anonymize_ip:true});</script>")
+    # BOTH destinations must be configured. Configuring only the GA4 measurement id
+    # silently breaks every Ads conversion: a later gtag('event','conversion',
+    # {send_to:'AW-xxx/label'}) has no initialised destination and is dropped, while a
+    # generate_lead sent from the same handler still reaches GA4. That looks like
+    # "the ads stopped producing leads" rather than a tracking fault, and it can appear
+    # to work intermittently because gtag sometimes auto-loads a destination named only
+    # in send_to. Cost us a month of under-reported conversions on one client
+    # (GA4 saw 10 leads, Ads recorded 3) before anyone cross-checked the two.
+    # The Ads id lives as the prefix of the conversion send_to ("AW-123/label"), which
+    # is where launch config already records it; fall back to an explicit key.
+    _st = ((cfg.get("ads") or {}).get("conversion") or {}).get("send_to") or ""
+    aw = (_st.split("/")[0] if _st.startswith("AW-") else (G.get("ads_conversion_id") or "")).strip()
+    cfgs = "gtag('config','" + mid + "',{anonymize_ip:true});"
+    if aw:
+        cfgs += "gtag('config','" + aw + "');"
+    else:
+        lines.append("WARN no ads_conversion_id in config - Ads conversions will NOT be recorded")
+    snippet = ("<script data-elm-ga4=\"1\" async src=\"https://www.googletagmanager.com/gtag/js?id=" + mid + "\"></script><script data-elm-ga4c=\"1\">window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());" + cfgs + "</script>")
     n = 0
     for pg in wp.pages():
         els = json.loads(wp.page_data(pg["id"]) or "[]")

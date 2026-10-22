@@ -147,3 +147,52 @@
 - **Check for a "delay JavaScript" optimiser before trusting ANY analytics number — it silently deletes the visitors who never interact.** Eliminatis ran Hummingbird's delay feature over `gtag.js` and every inline tracking block (`data-elm-ga4c`, `data-elm-attr`, `data-elm-tel`), marked `type="wphb-delay-type"`. Proven in-browser: **19s after load with no interaction, `gtag` was undefined and `dataLayer` empty — no timeout fallback, release is interaction-only.** Three consequences that invalidate the obvious readings: a visitor who lands and leaves is never counted at all (so measured bounce counts only *interacting* visitors and understates the real figure); "zero scroll events" means nothing, because the scroll is what releases the listener that would have recorded it; and **a tap on a `tel:` link as the first interaction fires no conversion at all** — the handler has not attached. **The lead count becomes a floor, not a count.** Detect it in one query: load a page, wait 10s without touching it, and check `typeof gtag` and `dataLayer.length`. If gtag is undefined, every funnel conclusion drawn from that property is partial. Fix by excluding the tag loader and the inline tracking blocks from the delay list — and note this is the same class of error as sweeping `defer`, just shipped by the host's own optimiser rather than by us.
 - **Hummingbird's delay-JS exclusions live under Asset Optimization → *Extra Optimization*, not the main screen — and the switch that matters most is "Exclude inline JavaScript from being delayed."** A first pass concluded the feature was all-or-nothing because the main screen shows only a toggle plus *file* exclusions for minify. It is not. The Extra Optimization panel carries a delay timeout, an **Ads/Trackers preset list** (Google Analytics, Google Tag Manager, Google Recaptcha, Stripe, HubSpot and others) and the inline toggle. For a site whose GA4 config, attribution capture and click handlers are inline `<script>` blocks, the inline toggle is the whole fix; the Ads/Trackers presets then cover the external tag loader. **Always include Google Recaptcha** if the forms use it — a delayed reCAPTCHA adds latency at submit or fails the submission. Set the timeout to its minimum: it is a safety net, not a feature.
 - **After fixing a tracking fault, tell the client/owner that the numbers will get WORSE before they get better.** Once non-interacting visitors are counted for the first time, bounce rate rises and session duration falls — the measurement became honest, performance did not degrade. Say this *before* the next report lands, or a genuine improvement reads as a regression. And state plainly that historical figures are not retroactively corrected: a lead count gathered under a broken tracker is a floor, not a count.
+
+## Never delete repeated HTML elements with `.*?` under `re.S`
+
+Removing one tile from a list with
+`re.sub(r'<li><a href="[^"]*"><svg.*?</svg><span>Ants</span></a></li>', '', h, flags=re.S)`
+silently deletes **every preceding sibling too**. `.*?` is non-greedy, but it still matches
+`</li><li>`, so the engine starts at the *first* `<li>` and runs forward to the first position
+where the rest of the pattern fits — the Ants label. Everything in between is consumed.
+
+On Eliminatis (2026-09-17) this removed Cockroaches, Bed bugs and Rats & mice along with Ants;
+the Mosquitoes pass then took Termites. The homepage pest selector sat at 2 of 6 tiles for a
+month, missing every service with a dedicated landing page and ad group — found only because
+Mike happened to look at the page.
+
+**Instead: rebuild the list from the authoritative source rather than subtracting from rendered
+HTML.** Keep the tile/item definitions in the build script, filter the list in Python, and
+re-emit the whole `<ul>`. That is what `build/fix_pestgrid.py` does, and it is both shorter and
+impossible to get wrong this way. If you must regex a repeated element, exclude the delimiter —
+`(?:(?!</li>).)*?` — and always assert the element count before and after.
+
+**Verify destructive content edits by counting.** Print `before -> after` for every list you
+touch and refuse to write when the delta is larger than intended. A dry-run mode that prints
+`2 tiles -> 6` catches this class of bug in one line.
+
+## gtag must configure the ADS destination too, not just GA4
+
+`06_google.py` injected `gtag('config','G-XXXX')` and nothing else. Any later
+`gtag('event','conversion',{send_to:'AW-xxxx/label'})` then has **no initialised
+destination and is silently dropped**, while a `generate_lead` fired from the same
+handler still reaches GA4. The failure is invisible: the client's dashboard shows
+"almost no leads from ads" and everyone blames the campaign.
+
+On Eliminatis this cost a month — **GA4 recorded 10 phone-tap leads, Google Ads
+recorded 3**, and the true cost per advertised enquiry was $89, not the $178 Ads was
+reporting. It is worse than a clean break because gtag *sometimes* auto-loads a
+destination named only in `send_to`, so it half-works and the partial number looks
+plausible.
+
+Fixed: `06_google.py` now emits `gtag('config','AW-...')` as well, from
+`ads_conversion_id` in the launch config, and warns loudly when that key is absent.
+
+**Verify it on every launch, from the live page — not the source:**
+1. `curl` the page and confirm **two** `gtag('config',...)` calls, one `G-`, one `AW-`.
+2. Load the page with a fake `?gclid=TEST123`, tap a `tel:` link, and watch the
+   network for `googleadservices.com/pagead/conversion/<AW id>/` returning **200**
+   with `gclaw=TEST123` on the query string. That proves destination, label and click
+   id all line up. Config present is NOT proof the conversion fires.
+3. A week in, cross-check GA4's lead-event total against the Ads conversion total.
+   They should track. A persistent gap means this bug or one like it.

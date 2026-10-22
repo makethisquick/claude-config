@@ -82,3 +82,43 @@ account ids, search terms or lead details — this file is studio-wide.
   invented fact. Scope every enrichment query to the same ad group as the lead, and
   escape quotes in the ad-group name. Caught only because a hand-check from an
   earlier session disagreed — worth re-deriving one number by hand per report.
+
+## Always cross-check GA4 `generate_lead` against the Ads conversion count
+
+On Eliminatis (2026-10-21) Google Ads reported **3** leads in 30 days and an apparent
+11-day dry spell. GA4 reported **10** lead events over the same window, 6 of them from
+`cpc`. The ads were fine; the *measurement* was broken, and a report built on the Ads
+number alone would have told the client their advertising had stopped working.
+
+**Root cause, worth memorising because it is silent and common:** the site loaded
+gtag for the GA4 property only —
+
+```js
+gtag('config','G-L99HVQ31R9',{anonymize_ip:true});          // GA4 — configured
+gtag('event','conversion',{send_to:'AW-.../label', ...});    // Ads — never configured
+```
+
+With no `gtag('config','AW-...')` the Ads destination is never initialised, so the
+`conversion` event has nowhere to go while `generate_lead` reaches GA4 from the same
+handler. It can appear to work intermittently (gtag sometimes auto-loads the
+destination), which is worse than failing outright — it produces a partial count that
+looks plausible.
+
+**Do this on every report before writing a word:**
+1. Pull GA4 event counts for the lead event and compare the total and the per-date
+   series against the Ads conversion series.
+2. If GA4 > Ads, split GA4 by `sessionMedium`. Only `cpc` rows should ever appear in
+   Ads — direct/organic leads are correctly absent and are not evidence of a fault.
+3. A divergence that *starts on a specific date* points at a site change on that date.
+   Check what was deployed. Here it coincided exactly with a caching/JS-delay change.
+4. Fetch the live page and grep for `gtag('config'` — confirm an `AW-` destination is
+   configured, not just referenced in `send_to`.
+
+**Report the true number with the caveat**, not the platform's number. Leading with
+"Google says 3, your site says 10, here is why" is more credible than either figure
+alone, and it is the difference between a client believing the campaign failed and
+understanding it is working.
+
+**Also learned:** when every lead is a phone tap and the form conversion has *never*
+fired, say so explicitly. It is a finding, not an omission — it tells the client where
+the next fix belongs.
