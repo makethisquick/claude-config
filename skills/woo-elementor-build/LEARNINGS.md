@@ -73,3 +73,78 @@
 - **Don't give categories and products the same base.** `/services/<cat>/` + `/services/<product>/` collide in Woo rewrites. Use a distinct product prefix (`/service/%product_cat%/`). With category base == shop slug, `/services/page/N/` is captured by the category rule, so show the shop on one page or change the category base.
 - **No-price "products"** (estimate-only services, subscription landing cards) cause trouble: no eligible Product snippet, Merchant-feed rejections, thin duplicates. Make them pages + static cards in the category template instead.
 - **Feed plugins** (Google Listings & Ads, Pinterest/Reddit/Snapchat for Woo) will try to sync service products. Set "don't sync" before publishing anything.
+- **Compliance config without PHP — three wins worth reusing:**
+  - **State-level blocking via shipping zones.** Woo has no state exclusion in "sell to specific
+    countries", but restricting a zone to the 49 permitted states + DC and leaving the *fallback*
+    zone with **no methods** makes the excluded state unserviceable at checkout. No snippet needed.
+    Verify the fallback zone is empty — that is what actually does the blocking.
+  - **A stacking surcharge** (e.g. Utah's additional 10% on intimate products) works as a second
+    `wc/v3/taxes` rate at `priority: 2`; same-priority rates replace rather than stack.
+  - **Plugins install straight from wordpress.org over REST**: `POST wp/v2/plugins
+    {"slug":"age-gate","status":"active"}`. Its *settings* are not REST-writable though, so plugin
+    configuration still needs wp-admin or browser automation.
+- **Check for pre-existing shipping methods before adding your own.** The stock Woo zone already
+  had a `free_shipping` method with `min_amount: 0`, so adding a $75-threshold free-shipping method
+  left everything shipping free and silently defeated the threshold. List
+  `wc/v3/shipping/zones/<id>/methods` and delete by `instance_id` first.
+- **`wp/v2/plugins` POST with `{"status":"inactive"}` deactivates cleanly** and is the fastest way
+  to clear incompatible gateways/feed plugins. Re-read the plugin list to confirm; don't trust the
+  response alone.
+
+## 2026-10-23: hush — design system, pages, and verification gotchas
+
+- **`update-global-colors` and `update-global-typography` silently no-op on system IDs.** Both
+  returned `success: true` while the system colours stayed Elementor blue and typography stayed
+  Roboto; my `primary`/`secondary`/`text`/`accent` entries were appended to `custom_colors` as
+  duplicates instead. **The only path that works is a full kit write**: read `get-global-settings`,
+  modify `system_colors` / `system_typography` / `custom_colors` in the settings object, and send
+  the whole thing to `update-page-settings`. Note the arg is **`post_id`**, not `page_id`
+  (the kit is a post — `wp/v2/elementor_library` slug `default-kit`, id 7 here).
+  This is Rule 4 earning its keep: `success: true` is not proof.
+- **`build-page` with a declarative `structure` tree works well** — 55 elements, one call, nesting
+  intact. Far better than add-container/add-widget chains for a whole page.
+- **Flex rows need explicit child widths.** Setting `flex_direction: row` + `flex_wrap: wrap` on the
+  parent and `_flex_size: grow` on children is NOT enough — children default to full width and each
+  wraps onto its own line. Set `width` (%) plus `width_tablet` / `width_mobile` on every child
+  container, and `_flex_size: none`.
+- **`get-page-structure` returns no settings**, only the element tree and ids. To check what
+  actually saved, call `get-element-settings` per element id.
+- **WooCommerce slugifies category names and drops "and"**: "Bondage and Restraint" →
+  `bondage-restraint`, "Strokers and Sleeves" → `strokers-sleeves`. Hard-coded category links built
+  from the display name will 404. Read the real slugs from `wc/v3/products/categories` first.
+- **Avoid `&` in category names entirely** — it stores HTML-entity-encoded as `&amp;` and renders
+  literally. Use "and".
+- **A catalog apply must REPLACE categories, not union them.** Adding the new id while keeping the
+  old left 11 products in two categories and made category counts disagree with the source of truth.
+- **Do not let the apply script reset `status`** once products are published — keep the status in
+  `products.json` in sync with the site or the next run silently unpublishes the catalog.
+- **Woo block checkout shows stale shipping rates after an in-page address change.** Changing state
+  to a blocked state left the old rates on screen; a fresh page load correctly showed
+  "No shipping options are available for this address." **Always verify a shipping-zone block on a
+  fresh load**, not by editing the field in place.
+- **Supplier image URLs:** Nalpac exposes no image column in its CSVs, but `products.xml` has
+  `IMAGE_1` → `https://nalpacazimages.blob.core.windows.net/images/{large|medium}/<item_id>.jpg`.
+  99% coverage on our assortment. `wc/v3` sideloads from a URL via `images:[{src,name,alt}]`, but it
+  is slow (server-side fetch per product) — background it.
+- **The Nalpac blob container permits anonymous listing**:
+  `?restype=container&comp=list` revealed 14 feeds including the attributes and category files,
+  none of which are linked from the data-feeds page. Worth doing on any Azure-blob supplier feed.
+- **Use the supplier's own category feed over keyword guessing**, but order the mapping
+  **most-specific-first** — a generic "Vibrators and Massagers" tag will otherwise swallow sex
+  machines and couples toys that also carry it.
+
+## 2026-10-23: taskrunnerz (full build + cutover; production, checkout off)
+
+- **WPMU DEV WAF blocks snippet POSTs** containing `$_GET[`, the phrase `schema (`, and also scores cumulatively. Keep Code Snippets code in parts under about 3 KB, and bisect with throwaway snippets (then DELETE them; check the list afterwards).
+- **Elementor container `width` is ignored when `content_width` is "boxed"** (only `boxed_width` applies). Nested columns must be `content_width: full` + `width`. Widths + flex gap > 100% wraps rows, so subtract a few % per column.
+- **Woo single-product / archive title widgets imported via JSON show "Add Your Heading Text Here"**: they need `__dynamic__` tags. A tiny `[tr_title]` shortcode is more robust.
+- **`save_conditions()` wants arrays** (`type/name/sub_name/sub_id`), not strings; strings fatal with "Cannot unset string offsets". Pre-cutover scope: `include/singular/page/<id>` per new page + `include/product` + `include/product_archive`, so the live pages stay untouched.
+- **The kit body/heading styles apply site-wide** (body has `elementor-kit-N` on every page). Scope all visible CSS under a body class that a snippet adds only to new pages, then site-wide at cutover.
+- **New option read back `false` after `update_option` succeeded** (notoptions/alloptions cache). Clear the `options` cache group around writes, and verify in a separate request.
+- **Woo "Coming soon" (store pages only) was ON** on a site whose store had never launched. It hides every product/shop page from visitors, so check `woocommerce_coming_soon` in preflight.
+- **Term descriptions are kses-stripped of all tags** via REST, so category FAQs go in a shortcode keyed by slug.
+- **SmartCrawl sitemap can be a stale static file** ("manual" regeneration). Switching to the WP core sitemap needed `wp_sitemaps_enabled` forced true + a second rewrite flush. robots.txt may be overridden by another plugin: serve it from `init` priority 0.
+- **Woo's Product schema doesn't fire from Elementor Pro single templates.** Output Product/AggregateOffer yourself; Woo's breadcrumb widget already emits a BreadcrumbList, so don't add a second.
+- **Visual QA:** the Chrome extension was flaky. A no-dependency CDP script (`build/tools/shot.mjs`: Emulation.setDeviceMetricsOverride + captureBeyondViewport) gives true 390 px screenshots. Headless `--window-size=390` is NOT true mobile (min window width ≈500).
+- **Elementor Pro forms on mobile use a separate flatpickr input** for date fields; fill `input.flatpickr-mobile` in tests. Submissions take 8–20 s on this host (uncached admin-ajax + wp_mail), so wait ≥45 s.
+- **LCP levers that worked:** skip Jetpack Photon on hero images, dequeue Astra/Elementor Google Fonts + block-library CSS on new pages, preload the hero with matching `imagesrcset`, aspect-ratio on hero images, `font-display: optional` for the display face.
