@@ -148,3 +148,11 @@
 - **Visual QA:** the Chrome extension was flaky. A no-dependency CDP script (`build/tools/shot.mjs`: Emulation.setDeviceMetricsOverride + captureBeyondViewport) gives true 390 px screenshots. Headless `--window-size=390` is NOT true mobile (min window width ≈500).
 - **Elementor Pro forms on mobile use a separate flatpickr input** for date fields; fill `input.flatpickr-mobile` in tests. Submissions take 8–20 s on this host (uncached admin-ajax + wp_mail), so wait ≥45 s.
 - **LCP levers that worked:** skip Jetpack Photon on hero images, dequeue Astra/Elementor Google Fonts + block-library CSS on new pages, preload the hero with matching `imagesrcset`, aspect-ratio on hero images, `font-display: optional` for the display face.
+
+## 2026-10-24: taskrunnerz — client feedback round (photos, galleries)
+
+- **Check which version the client reviewed.** Their notes named sections that only existed on the old Brizy home (and an old phone number). Grep the old page before "fixing" things the new site already gets right.
+- **Pexels without an API key:** pexels.com search is bot-blocked to curl (403), but in a real Chrome tab `fetch('/search/<q>/')` returns `__NEXT_DATA__` with photo ids + alt text; images.pexels.com serves `?auto=compress&cs=tinysrgb&w=1400&fm=webp` to curl. The javascript tool output truncates around 1 KB, so pull ids in slices. Review candidates with a local HTML contact sheet screenshotted via `tools/shot.mjs` — choose by eye, never by alt text alone (diversity, relevance, no "our team" implication).
+- **The Openverse-backed `search-images` MCP tool timed out server-side** on WPMU DEV — don't rely on it.
+- **Photo galleries hurt LCP if the first one is lazy and above the fold.** Lighthouse flagged the first gallery image; making only that image `loading=eager` + `fetchpriority=high` took services LCP from ~2.8 s to ~2.2 s.
+- **shot.mjs + lazy images:** setting `loading=eager` on all images then capturing produced a garbled full-page shot; scrolling through the page in 600 px steps before capture is reliable.
